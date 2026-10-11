@@ -111,17 +111,27 @@ describe('the tab icons and labels', () => {
       expect(label(start)).toBe('12:36')
       expect(tabs()[2]).toBe(start)   // the same button, only its text ticks
 
-      // tapping it really pauses: the clock stops where it is, and the button turns to play
+      // one button: tapping it pauses right here, the clock stops, and the button turns to play
       act(() => { start.click() })
       expect(useStore.getState().S.active.pausedAt).toBeGreaterThan(0)
       act(() => { vi.advanceTimersByTime(60_000) })
       expect(label(tabs()[2])).toBe('12:36')
       expect(icon(tabs()[2])).toBe('play')
-      expect(tabs()[2].getAttribute('aria-label')).toBe('Paused')
-      // opening a paused session does not resume it
+      expect(tabs()[2].getAttribute('aria-label')).toBe('Resume')
+      // …and tapping again carries on from the same time
       act(() => { tabs()[2].click() })
-      expect(useStore.getState().S.active.pausedAt).toBeGreaterThan(0)
-      act(() => { useStore.getState().update(s => { delete s.active.pausedAt }, false) })
+      expect(useStore.getState().S.active.pausedAt).toBeUndefined()
+      expect(label(tabs()[2])).toBe('12:36')
+      expect(icon(tabs()[2])).toBe('pause')
+
+      // a session opened but not started yet reads Start, and play starts its clock from 0:00
+      act(() => { useStore.getState().update(s => { s.active = { id: 'b', entries: [], cur: 0, start: Date.now(), pausedAt: Date.now(), notStarted: true } }, false) })
+      expect(label(tabs()[2])).toBe('Start')
+      expect(icon(tabs()[2])).toBe('play')
+      act(() => { vi.advanceTimersByTime(30_000) })
+      act(() => { tabs()[2].click() })
+      expect(useStore.getState().S.active.notStarted).toBeUndefined()
+      expect(label(tabs()[2])).toBe('0:00')
 
       // a past workout being edited has no clock running
       act(() => { useStore.getState().update(s => { s.active.editingWorkoutId = 'w1' }, false) })

@@ -5,7 +5,7 @@ import { todayISO } from '../lib/format.js'
 import { t } from '../lib/i18n.js'
 import Icon from './Icon.jsx'
 import Elapsed from './Elapsed.jsx'
-import { isPaused, pauseSession } from '../lib/session-pause.js'
+import { isPaused, isNotStarted, toggleSession } from '../lib/session-pause.js'
 import { useConnectionTrouble } from './SyncBanner.jsx'
 
 // Module scope, not TabBar's render body. Declared inside it, `Tab` was a new function on every
@@ -33,16 +33,19 @@ export default function TabBar({ onStart }) {
   const cur = loc.pathname.split('/')[1] || 'home'
   const on = k => cur === k || (cur === 'history' && k === 'stats') || (cur === 'settings' && k === 'home') || (cur === 'muscles' && k === 'library') || (cur === 'structural-balance' && k === 'stats')
 
-  const running = !!S.active && cur !== 'workout' && !S.active.editingWorkoutId && !S.active.backfill && S.active.start > 0
+  // A live session (not a saved workout being edited, nor one logged after the fact) has a clock.
+  const running = !!S.active && !S.active.editingWorkoutId && !S.active.backfill && S.active.start > 0
   const paused = running && isPaused(S.active)
+  const fresh = running && isNotStarted(S.active)
   const startWorkout = () => {
     if (!S.active) {
       // A weekday can hold several routines; start the combined session if any of them has
       // exercises, otherwise fall through to the picker.
-      if (effectiveRoutines(S, todayISO()).some(r => r.ex.length)) { onStart(effectiveRoutineIds(S, todayISO())); return }
+      if (effectiveRoutines(S, todayISO()).some(r => r.ex.length)) { onStart(effectiveRoutineIds(S, todayISO()), { started: true }); return }
     }
-    // A running session stops here and the workout opens paused; Resume is on that screen.
-    if (running && !paused) pauseSession()
+    // With a session open the button is its play/pause, right where you are; the workout itself
+    // is opened from Home's Today row.
+    if (running) { toggleSession(); return }
     nav('/workout')
   }
 
@@ -50,18 +53,15 @@ export default function TabBar({ onStart }) {
     <nav id="tabbar">
       <Tab active={on('home')} icon="house" label={t('Home')} dot={trouble} onClick={() => nav('/home')} />
       <Tab active={on('plan')} icon="calendar" label={t('Plan')} onClick={() => nav('/plan')} />
-      {/* On the workout screen itself there is nothing to resume, so the button reads as the
-          tab it is and stays lit (#29); anywhere else it brings you back to the exercise you
-          were on — the marker is kept in S.active.cur and never moves on its own (#21). The
-          glyph is play until a session is running, then pause: tapping it stops the clock and opens
-          the workout, where Resume is. A paused session shows play with its frozen time, and
-          opening it does not resume it either. A live session you stepped away from shows its
-          running time instead of a word; a past workout being edited or logged after the fact has
-          no clock to run. */}
+      {/* Play and pause in one button. With nothing open it starts today's session, clock
+          running; with a session open it starts, pauses and resumes its clock without leaving the
+          screen you are on. A session opened but not started reads Start; one that has run shows
+          its time, frozen while paused. A past workout being edited or logged after the fact has
+          no clock, so there the button just goes back to it. */}
       <button className={'start' + (S.active ? ' rec' : '') + (paused ? ' paused' : '') + (S.active && cur === 'workout' ? ' on' : '')} onClick={startWorkout}
-        aria-label={running ? (paused ? t('Paused') : t('Pause')) : undefined}>
+        aria-label={running ? (fresh ? t('Start workout') : paused ? t('Resume') : t('Pause')) : undefined}>
         <span className="cir"><Icon name={running && !paused ? 'pause' : 'play'} /></span>
-        {running ? <span className="tab-time"><Elapsed start={S.active.start} pausedAt={S.active.pausedAt} /></span>
+        {running ? (fresh ? <span>{t('Start')}</span> : <span className="tab-time"><Elapsed start={S.active.start} pausedAt={S.active.pausedAt} /></span>)
           : <span>{S.active ? (cur === 'workout' ? t('Workout') : S.active.editingWorkoutId ? t('Edit workout') : t('Resume')) : t('Start')}</span>}
       </button>
       <Tab active={on('stats')} icon="chart" label={t('Stats')} onClick={() => nav('/stats')} />

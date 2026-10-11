@@ -36,7 +36,7 @@ import { defaultIncrement, weightIncrement, stepWeight } from '../lib/progressio
 import { progressionGuidance } from '../lib/progression-copy.js'
 import { buildPlannedEntry, plannedConfigOf, builtOutOfProgression } from '../lib/session-start.js'
 import { routineChangesFromEntry, updateRoutineFromEntry } from '../lib/routines.js'
-import { isPaused, pauseSession, resumeSession } from '../lib/session-pause.js'
+import { isPaused, isNotStarted, pauseSession, resumeSession } from '../lib/session-pause.js'
 import { sessionNoProg, setSessionNoProg, setEntryNoProg, joinSessionNoProg } from '../lib/session-noprog.js'
 import { glyphOf } from '../lib/glyphs.js'
 import { markAllSetsDone, sessionHistory } from '../lib/backfill.js'
@@ -925,6 +925,7 @@ function ActiveWorkout() {
   const A = S.active
   const editing = !!A.editingWorkoutId
   const paused = isPaused(A)
+  const fresh = isNotStarted(A)
   // A past workout has no rest to time — the sets were done days ago. The work timer for
   // timed sets stays, since counting a hold is how its duration gets entered.
   const startRest = (A.backfill || editing) ? () => {} : liveRest
@@ -1439,7 +1440,7 @@ function ActiveWorkout() {
         !editing && { icon: 'clipboard', label: t('Add routine'), sub: t('Bring another routine into this session'), onClick: addRoutineToSessionSheet },
       ] },
       { title: t('This workout'), items: [
-        !editing && !A.backfill && { icon: paused ? 'play' : 'pause', label: paused ? t('Resume workout') : t('Pause workout'), onClick: paused ? resumeSession : pauseSession },
+        !editing && !A.backfill && { icon: paused ? 'play' : 'pause', label: fresh ? t('Start workout') : paused ? t('Resume workout') : t('Pause workout'), onClick: paused ? resumeSession : pauseSession },
         A.backfill && A.entries.length > 0 && { icon: 'checkCircle', label: t('Mark all sets done'), onClick: markAllDone },
         { icon: 'pencil', label: t('Rename workout'), onClick: renameWorkoutSheet },
         { icon: 'layout', label: t('Layout'), sub: LAYOUT_LABEL[workoutView] || LAYOUT_LABEL.cards, onClick: openLayoutMenu },
@@ -1902,34 +1903,34 @@ function ActiveWorkout() {
     }
   }, [])
 
-  return <WorkoutScrollAnchor enabled={collapseOn} collapsed={[...collapsed].join(',')} className={paused ? 'wk-paused' : undefined}>
+  return <WorkoutScrollAnchor enabled={collapseOn} collapsed={[...collapsed].join(',')}>
     {/* In list mode the whole session scrolls under the header, so the header (name, clock,
         set counter, discard/finish, progress) stays pinned — the one thing you want in view
         while you are somewhere in the middle of a long stack. Cards mode never scrolls far. */}
     <div className={'whdr' + (listMode ? ' stick' : '')} ref={hdrRef}>
     {/* ‹ leaves the screen and does not touch the clock: a running session keeps running and a
-        paused one stays paused until Resume, on this screen. In the editor of a saved workout it
-        is the ✕ that closes the editor. Finish is a labelled pill rather than a check that looked
-        like a set tick: it opens the Finish sheet (Finish and save, Discard), the editor's Save
-        saves at once. */}
+        paused one stays paused. In the editor of a saved workout it is the ✕ that closes the
+        editor. The clock is its own play/pause. The pill on the right is Start until the session
+        has been started, then Finish: it opens the Finish sheet (Finish and save, Discard); the
+        editor's Save saves at once. */}
     <div className="hdr whdr-bar">
       {editing
         ? <button className="iconbtn" aria-label={t('Close editor')} title={t('Close editor')} onClick={() => exitWorkoutEdit()}><Icon name="xmark" /></button>
         : <button className="iconbtn" aria-label={t('Minimize')} title={t('Minimize')} onClick={() => nav('/home')}><Icon name="chevronLeft" /></button>}
-      <div className="whdr-mid"><div className="whdr-name">{A.name}</div><div className="sub">{(A.backfill || editing) ? fmtDate(A.d, true) : <Elapsed start={A.start} pausedAt={A.pausedAt} />} · {t('{0} sets', done + '/' + total)}{paused ? ' · ' + t('Paused') : ''}</div></div>
+      <div className="whdr-mid"><div className="whdr-name">{A.name}</div><div className="sub">{(A.backfill || editing) ? fmtDate(A.d, true)
+        : <button type="button" className="whdr-clock" aria-label={fresh ? t('Start workout') : paused ? t('Resume workout') : t('Pause workout')}
+          onClick={paused ? resumeSession : pauseSession}><Icon name={paused ? 'play' : 'pause'} /><Elapsed start={A.start} pausedAt={A.pausedAt} /></button>} · {t('{0} sets', done + '/' + total)}{paused && !fresh ? ' · ' + t('Paused') : ''}</div></div>
       <button className="iconbtn" aria-label={t('Workout options')} title={t('Workout options')} onClick={openViewMenu}><Icon name="more" /></button>
-      <button className="btn primary pill whdr-finish" aria-label={editing ? t('Save changes') : undefined}
-        onClick={() => (editing ? finishWorkout() : finishWorkoutSheet({ onDiscard: discardWorkout }))}>{editing ? t('Save') : t('Finish')}</button>
+      {fresh
+        ? <button className="btn primary pill whdr-finish" aria-label={t('Start workout')} onClick={resumeSession}>{t('Start')}</button>
+        : <button className="btn primary pill whdr-finish" aria-label={editing ? t('Save changes') : undefined}
+          onClick={() => (editing ? finishWorkout() : finishWorkoutSheet({ onDiscard: discardWorkout }))}>{editing ? t('Save') : t('Finish')}</button>}
     </div>
     <div className="wprog"><i style={{ width: (total ? done / total * 100 : 0) + '%' }} /></div>
     {/* In the list the chips ride in the pinned header, so any exercise is one tap away from
         anywhere in a long stack. */}
     {listMode && chipRow}
     </div>
-    {paused && <div className="paused-bar" role="status">
-      <div><strong>{t('Workout paused')}</strong><div className="muted small">{t('The clock is stopped. Nothing counts until you resume.')}</div></div>
-      <Button variant="primary" icon="play" onClick={resumeSession}>{t('Resume')}</Button>
-    </div>}
     {editing && <p className="muted small">{t('Editing a saved workout. Date and duration stay unchanged.')}</p>}
     {A.backfill && <div className="muted small" style={{ marginBottom: 8 }}>{t('Logging a past workout, so no rest timers.')}</div>}
 

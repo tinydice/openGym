@@ -58,7 +58,7 @@ import { joinSessionNoProg } from './lib/session-noprog.js'
 import { buildCombinedEntries, deriveSessionName } from './lib/session-merge.js'
 import { workoutsOn, backfillStart, backfillEnd, completeBackfill, historyAsOf, sessionHistory } from './lib/backfill.js'
 import { moveWorkout, sameWorkout, startTimeOf, durationMinOf, setWorkoutDuration, rebuildPrHistory, MAX_DURATION_MIN, endsInFuture } from './lib/workout-date.js'
-import { isPaused, resumeSession } from './lib/session-pause.js'
+import { isPaused, resumeSession, clockFields } from './lib/session-pause.js'
 import { editCompletedSession, editLeftEmpty, editedRecord, editChangesNothing } from './lib/session-edit.js'
 import { stampWorkout } from './lib/sync-merge.js'
 import { weeklyWeights } from './lib/bodyweight.js'
@@ -2775,12 +2775,14 @@ export function startFlow(routineIds, opts) {
   bwSheet({ required: true, onDone: bw => beginWorkout(routineIds, bw, opts) })
 }
 // `opts.slot` is the place in the rotation the session was picked from (lib/queue.js).
+// `opts.started`: the tab bar's play starts the clock at once; everywhere else opens the session
+// and waits for play (lib/session-pause.js).
 export function beginWorkout(routineIds, bw, opts) {
   const st = S()
   const { entries, routineIds: rids, routines } = buildCombinedEntries(st, routineIds)
   update(s => {
     s.active = {
-      id: uid(), d: todayISO(), start: Date.now(),
+      id: uid(), d: todayISO(), ...clockFields(opts?.started === true),
       // A session tracks its routines as a list; per-entry `rid` carries which one each
       // exercise came from. No top-level `excludeFromProgression` — per-entry `noProg` does it.
       routineIds: rids,
@@ -2808,7 +2810,7 @@ export function repeatWorkout(w, close) {
     if (S().active) { toast(t('Finish the current workout first.')); return }
     update(s => {
       s.active = {
-        id: uid(), d: todayISO(), start: Date.now(), routineIds: [],
+        id: uid(), d: todayISO(), ...clockFields(false), routineIds: [],
         name: w.name || t('Freestyle'), bw: bw || null, cur: 0, entries,
         workoutView: s.workoutView || 'cards',
       }
