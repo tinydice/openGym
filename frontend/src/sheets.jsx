@@ -4,7 +4,7 @@ import { useUI } from './store/useUI.js'
 import { EXDB, EXIDX, BODYPARTS, isCardio, isBodyweightEq, allExercises, equipmentOf, byCategory, smOf, searchExercises, similarExercises, exOr, isAssisted, betterWeight, beatsWeight, isCustomEx } from './lib/exercises.js'
 import { activeProfile, exAvailable, ALL_EQUIPMENT, newProfile, profileEquipment, ACC_V } from './lib/equipment.js'
 import { fmtDate, fmtDateRange, fmtNum, fmtPlate, exerciseNameText, fmtVol, fmtDur, durPart, todayISO, isoOf, uid, exCount, routineCount, setsWorkCount, DAYN, DAYS, weekOrder, weekStartOf, weekDayOffset, MONTHS_LONG, ACCENTS } from './lib/format.js'
-import { lastEntryFor, bestWeightFor, bestWeightForEntry, buildSets, effectiveRoutineIds, workoutDay, workoutVolume, setsDone, setsDoneActive, setUnitsTotal, lastBW, sessionSections, setLabel, defaultConfig, cleanupSg, modeOf, effortOf, EFFORT, capEffort, stepEffort, isBw, isPerSide, sideReps, workSetsDone, applyIntensifierPlan, MAX_PLANNED_WARMUPS, NOTE_MAX } from './lib/history.js'
+import { lastEntryFor, bestWeightFor, bestWeightForEntry, buildSets, effectiveRoutineIds, workoutDay, workoutVolume, workoutDuration, setsDone, setsDoneActive, setUnitsTotal, lastBW, sessionSections, setLabel, defaultConfig, cleanupSg, modeOf, effortOf, EFFORT, capEffort, stepEffort, isBw, isPerSide, sideReps, workSetsDone, applyIntensifierPlan, MAX_PLANNED_WARMUPS, NOTE_MAX } from './lib/history.js'
 import { usesBar, defaultBarWeight, hasBarOverride, isNoBar } from './lib/bar.js'
 import { PLATE_SIZES, pairsOf, ownsPlates, withPlatePairs, withStandardPlates, withLoadKind, loadKindFor, baseWeightFor, dropGrid } from './lib/plates.js'
 import { toScale, rirOf, EFFORT_PRESETS, effortColor } from './lib/effort.js'
@@ -58,6 +58,7 @@ import { joinSessionNoProg } from './lib/session-noprog.js'
 import { buildCombinedEntries, deriveSessionName } from './lib/session-merge.js'
 import { workoutsOn, backfillStart, backfillEnd, completeBackfill, historyAsOf, sessionHistory } from './lib/backfill.js'
 import { moveWorkout, sameWorkout, startTimeOf, durationMinOf, setWorkoutDuration, rebuildPrHistory, MAX_DURATION_MIN, endsInFuture } from './lib/workout-date.js'
+import { isPaused, resumeSession } from './lib/session-pause.js'
 import { editCompletedSession, editLeftEmpty, editedRecord, editChangesNothing } from './lib/session-edit.js'
 import { stampWorkout } from './lib/sync-merge.js'
 import { weeklyWeights } from './lib/bodyweight.js'
@@ -2701,7 +2702,7 @@ function Calendar({ start, close }) {
   const daysIn = new Date(y, mo + 1, 0).getDate()
   const monthWs = st.workouts.filter(w => workoutDay(w)?.startsWith(y + '-' + String(mo + 1).padStart(2, '0')))
   const monthVol = monthWs.reduce((a, w) => a + (w.vol || 0), 0)
-  const monthMs = monthWs.reduce((a, w) => a + Math.max(0, (w.end || w.start) - w.start), 0)
+  const monthMs = monthWs.reduce((a, w) => a + workoutDuration(w), 0)
   const cells = []
   for (let i = 0; i < startOffset; i++) cells.push(<div key={'e' + i} />)
   for (let d = 1; d <= daysIn; d++) {
@@ -2747,7 +2748,7 @@ export function WorkoutRow({ w, onClick }) {
   return <div className="item" {...tappable(onClick)}>
     <span className="lrow-i" style={{ width: 34, height: 34, borderRadius: 8, fontSize: 19 }}><Icon name={glyph} /></span>
     <div className="grow"><div className="tt">{w.name}</div>
-      <div className="ss">{[fmtDate(w.d, true), ...durPart(w.end - w.start), tn('{0} set', '{0} sets', setsDone(w)), fmtVol(w.vol, st.unit)].join(' · ')}</div></div>
+      <div className="ss">{[fmtDate(w.d, true), ...durPart(workoutDuration(w)), tn('{0} set', '{0} sets', setsDone(w)), fmtVol(w.vol, st.unit)].join(' · ')}</div></div>
     {mediaN > 0 && <span className="wrow-media" title={tn('{0} photo or video', '{0} photos or videos', mediaN)} aria-label={tn('{0} photo or video', '{0} photos or videos', mediaN)}><Icon name="image" />{mediaN}</span>}
     {w.prs && w.prs.length > 0 && <span className="pr"><Icon name="trophy" />{w.prs.length} PR</span>}
     <Icon name="chevronRight" className="chev" />
@@ -3362,6 +3363,8 @@ export function finishWorkoutSheet({ onDiscard } = {}) {
   })
 }
 function doFinishWorkout() {
+  // The clock runs again for the save: the time it was paused is already out of the start.
+  if (isPaused(S().active)) resumeSession()
   const st = S()
   const A = st.active
   if (!A) return

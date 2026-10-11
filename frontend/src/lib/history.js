@@ -5,7 +5,7 @@ import { fmtSpeed } from './speed.js'
 import { hasIncline, inclineFrom } from './incline.js'
 import { isCardio, isBodyweightEq, isAssisted, betterWeight } from './exercises.js'
 import { barWeightFor } from './bar.js'
-import { phaseForSet, modeForSet, modeForEntry, isWarmupRow, isFailureSet, isDropSet, isRestPauseSet, normalizeMode, completedVolumeOf, hasCompletedWork, nextDropWeight, splitBurstReps, makeSideSet, isSideSet, syncSideAggregate, WEIGHT_ORIGIN_MANUAL, dropsOf, clustersOf } from './workout-model.js'
+import { phaseForSet, modeForSet, modeForEntry, isWarmupRow, isFailureSet, isDropSet, isRestPauseSet, normalizeMode, completedVolumeOf, hasCompletedWork, setLengthMs, nextDropWeight, splitBurstReps, makeSideSet, isSideSet, syncSideAggregate, WEIGHT_ORIGIN_MANUAL, dropsOf, clustersOf } from './workout-model.js'
 import { backoffAt, backoffStepOf, backoffWeights } from './backoff.js'
 import { dbLoadOf, bellsIn, volumeFactor, historyAs, ownedFloor } from './dumbbells.js'
 const objectOf = value => value && typeof value === 'object' && !Array.isArray(value) ? value : {}
@@ -776,10 +776,18 @@ export function workoutDay(w) {
 }
 
 // Duration is derived from the completed session timestamps rather than a cached display value.
+// A session whose cardio or holds were ticked off in a hurry (a 30-minute walk logged in half a
+// minute) still did that work, so the time those rows record is the floor.
 export function workoutDuration(w) {
   const start = timestampOf(w?.start)
   const end = timestampOf(w?.end)
-  return start !== null && end !== null ? Math.max(0, end - start) : 0
+  const clock = start !== null && end !== null ? Math.max(0, end - start) : 0
+  return Math.max(clock, loggedWorkMs(w))
+}
+
+// The length of everything ticked in a saved session, as its rows record it.
+export function loggedWorkMs(w) {
+  return (w?.entries || []).reduce((ms, e) => ms + (e.sets || []).reduce((m, s) => m + (hasCompletedWork(s) ? setLengthMs(s) : 0), 0), 0)
 }
 
 // A unilateral row counts as two toward the "x / y sets" progress — one per side — since each

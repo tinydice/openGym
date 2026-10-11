@@ -1,7 +1,7 @@
 // The persisted boundary for a finished session. Keep this pure so compatibility tests can
 // exercise the exact shape the UI writes without mounting React or mutating store state.
 import { bestWeightForEntry, cleanupSg } from './history.js'
-import { hasCompletedWork, isSideSet } from './workout-model.js'
+import { hasCompletedWork, isSideSet, setLengthMs } from './workout-model.js'
 
 // planSec is live-session bookkeeping: a hold displaced before it finished puts its plan aside so
 // the row still knows what it is asking for (Workout.startTimed). A finished session keeps only
@@ -40,11 +40,7 @@ export const FORGOTTEN_GAP_MS = 20 * 60 * 1000
 // How long a ticked row itself took: a cardio row its minutes, a hold its seconds (both sides of
 // a per-side hold). A 30-minute treadmill finisher ticked at its end follows the last lift by
 // more than the gap without the session being over, so that time is not counted as a break.
-function rowLengthMs(set) {
-  const n = v => (Number(v) > 0 ? Number(v) : 0)
-  if (isSideSet(set)) return (n(set.sides.L?.sec) + n(set.sides.R?.sec)) * 1000
-  return n(set.min) * 60000 + n(set.sec) * 1000
-}
+const rowLengthMs = setLengthMs
 
 export function sessionEnd(active, now = Date.now(), gap = FORGOTTEN_GAP_MS) {
   const ticks = (active?.entries || [])

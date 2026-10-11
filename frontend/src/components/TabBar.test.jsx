@@ -92,11 +92,12 @@ describe('the tab icons and labels', () => {
     expect(tabs().map(label)).toEqual(['Home', 'Plan', 'Start', 'Stats', 'Exercises'])
 
     act(() => { useStore.getState().update(s => { s.active = { id: 'a', entries: [], cur: 0 } }, false) })
-    expect(icon(tabs()[2])).toBe('pause')
+    // no clock to run yet (no start): the button only brings the session back
+    expect(icon(tabs()[2])).toBe('play')
     expect(label(tabs()[2])).toBe('Resume')
   })
 
-  it('shows a minimized session’s running time, still named Resume', () => {
+  it('shows a minimized session’s running time on a pause button', () => {
     vi.useFakeTimers()
     try {
       vi.setSystemTime(new Date(2026, 9, 5, 18, 0, 0))
@@ -104,10 +105,23 @@ describe('the tab icons and labels', () => {
       act(() => { root.render(<TabBar onStart={() => {}} />) })
       const start = tabs()[2]
       expect(label(start)).toBe('12:34')
-      expect(start.getAttribute('aria-label')).toBe('Resume')
+      expect(start.getAttribute('aria-label')).toBe('Pause')
+      expect(icon(start)).toBe('pause')
       act(() => { vi.advanceTimersByTime(2000) })
       expect(label(start)).toBe('12:36')
       expect(tabs()[2]).toBe(start)   // the same button, only its text ticks
+
+      // tapping it really pauses: the clock stops where it is, and the button turns to play
+      act(() => { start.click() })
+      expect(useStore.getState().S.active.pausedAt).toBeGreaterThan(0)
+      act(() => { vi.advanceTimersByTime(60_000) })
+      expect(label(tabs()[2])).toBe('12:36')
+      expect(icon(tabs()[2])).toBe('play')
+      expect(tabs()[2].getAttribute('aria-label')).toBe('Paused')
+      // opening a paused session does not resume it
+      act(() => { tabs()[2].click() })
+      expect(useStore.getState().S.active.pausedAt).toBeGreaterThan(0)
+      act(() => { useStore.getState().update(s => { delete s.active.pausedAt }, false) })
 
       // a past workout being edited has no clock running
       act(() => { useStore.getState().update(s => { s.active.editingWorkoutId = 'w1' }, false) })

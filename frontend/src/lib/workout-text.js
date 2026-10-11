@@ -2,7 +2,7 @@
 // ideas'): something to paste into a chat, a coach's spreadsheet or a notes app. The sets are the
 // same labels the history shows, so a drop-set or a rest-pause set reads the same in both.
 // i18n-core rather than i18n, like history.js: nothing here needs the React half.
-import { setLabel, sessionSections, workoutVolume } from './history.js'
+import { setLabel, sessionSections, workoutVolume, workoutDuration } from './history.js'
 import { EXIDX } from './exercises.js'
 import { hasCompletedWork, isWarmupRow } from './workout-model.js'
 import { fmtDate, fmtNum, fmtVol, durPart, capWords } from './format.js'
@@ -16,7 +16,7 @@ import { t, exerciseNameClass } from './i18n-core.js'
  */
 export function workoutText(w, { unit, nameOf, speedUnit }) {
   const facts = [
-    ...durPart((w.end || 0) - (w.start || 0)),
+    ...durPart(workoutDuration(w)),
     fmtVol(w.vol ?? workoutVolume(w), unit),
     ...(w.bw ? [t('Body weight') + ' ' + fmtNum(w.bw) + ' ' + unit] : []),
   ]

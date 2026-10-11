@@ -5,6 +5,7 @@ import { todayISO } from '../lib/format.js'
 import { t } from '../lib/i18n.js'
 import Icon from './Icon.jsx'
 import Elapsed from './Elapsed.jsx'
+import { isPaused, pauseSession } from '../lib/session-pause.js'
 import { useConnectionTrouble } from './SyncBanner.jsx'
 
 // Module scope, not TabBar's render body. Declared inside it, `Tab` was a new function on every
@@ -33,12 +34,15 @@ export default function TabBar({ onStart }) {
   const on = k => cur === k || (cur === 'history' && k === 'stats') || (cur === 'settings' && k === 'home') || (cur === 'muscles' && k === 'library') || (cur === 'structural-balance' && k === 'stats')
 
   const running = !!S.active && cur !== 'workout' && !S.active.editingWorkoutId && !S.active.backfill && S.active.start > 0
+  const paused = running && isPaused(S.active)
   const startWorkout = () => {
     if (!S.active) {
       // A weekday can hold several routines; start the combined session if any of them has
       // exercises, otherwise fall through to the picker.
       if (effectiveRoutines(S, todayISO()).some(r => r.ex.length)) { onStart(effectiveRoutineIds(S, todayISO())); return }
     }
+    // A running session stops here and the workout opens paused; Resume is on that screen.
+    if (running && !paused) pauseSession()
     nav('/workout')
   }
 
@@ -49,15 +53,15 @@ export default function TabBar({ onStart }) {
       {/* On the workout screen itself there is nothing to resume, so the button reads as the
           tab it is and stays lit (#29); anywhere else it brings you back to the exercise you
           were on — the marker is kept in S.active.cur and never moves on its own (#21). The
-          glyph is play until a session is running, then pause: it is a live session you stepped
-          away from, and the button brings it back.
-          A live session you stepped away from shows its running time instead of a word, the
-          button still named Resume; a past workout being edited or logged after the fact has no
-          clock to run. */}
-      <button className={'start' + (S.active ? ' rec' : '') + (S.active && cur === 'workout' ? ' on' : '')} onClick={startWorkout}
-        aria-label={running ? t('Resume') : undefined}>
-        <span className="cir"><Icon name={S.active && !S.active.editingWorkoutId && !S.active.backfill ? 'pause' : 'play'} /></span>
-        {running ? <span className="tab-time"><Elapsed start={S.active.start} /></span>
+          glyph is play until a session is running, then pause: tapping it stops the clock and opens
+          the workout, where Resume is. A paused session shows play with its frozen time, and
+          opening it does not resume it either. A live session you stepped away from shows its
+          running time instead of a word; a past workout being edited or logged after the fact has
+          no clock to run. */}
+      <button className={'start' + (S.active ? ' rec' : '') + (paused ? ' paused' : '') + (S.active && cur === 'workout' ? ' on' : '')} onClick={startWorkout}
+        aria-label={running ? (paused ? t('Paused') : t('Pause')) : undefined}>
+        <span className="cir"><Icon name={running && !paused ? 'pause' : 'play'} /></span>
+        {running ? <span className="tab-time"><Elapsed start={S.active.start} pausedAt={S.active.pausedAt} /></span>
           : <span>{S.active ? (cur === 'workout' ? t('Workout') : S.active.editingWorkoutId ? t('Edit workout') : t('Resume')) : t('Start')}</span>}
       </button>
       <Tab active={on('stats')} icon="chart" label={t('Stats')} onClick={() => nav('/stats')} />

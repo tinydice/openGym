@@ -200,6 +200,14 @@ export const hasCompletedWork = set => isSideSet(set)
   ? set.sides.L.done === true || set.sides.R.done === true
   : set?.done === true
 
+/** How long a row itself took: a cardio row its minutes, a hold its seconds (both sides of a
+ *  per-side hold). Zero for a lift, which has no length of its own. */
+export function setLengthMs(set) {
+  const n = v => (Number(v) > 0 ? Number(v) : 0)
+  if (isSideSet(set)) return (n(set.sides.L?.sec) + n(set.sides.R?.sec)) * 1000
+  return n(set?.min) * 60000 + n(set?.sec) * 1000
+}
+
 /** Actual completed load x reps; the scalar maximum weight is only a summary. */
 export function completedVolumeOf(set) {
   if (isSideSet(set)) return completedVolumeOf(set.sides.L) + completedVolumeOf(set.sides.R)

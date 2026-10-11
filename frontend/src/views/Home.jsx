@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
+import { isPaused } from '../lib/session-pause.js'
 import { effectiveRoutines, effectiveRoutineIds, nextTrainingDay, streakWeeks, lastBW, setsDoneActive } from '../lib/history.js'
 import { fmtNum, fmtDate, todayISO, isoOf, weekStartOf, weekDayOffset, DAYS, DAYN } from '../lib/format.js'
 import { t, tn, dateLocale } from '../lib/i18n.js'
@@ -129,18 +130,18 @@ export default function Home() {
       <div className="today-row" {...tappable(onToday)}>
         <div className="row" style={{ gap: 9, minWidth: 0 }}>
           <span className="lrow-i" style={{ background: S.active ? 'var(--orange)' : doneToday ? 'var(--surface-3)' : routine ? 'var(--acc)' : 'var(--surface-3)' }}>
-            <Icon name={S.active ? (editingSaved ? 'pencil' : 'pause') : doneToday ? 'checkCircle' : routine ? glyphOf(routine.emoji) : 'moon'}
+            <Icon name={S.active ? (editingSaved ? 'pencil' : isPaused(S.active) ? 'play' : 'pause') : doneToday ? 'checkCircle' : routine ? glyphOf(routine.emoji) : 'moon'}
               style={doneToday && !S.active ? { color: 'var(--green)' } : undefined} />
           </span>
           <div style={{ minWidth: 0 }}>
             <div className="lbl2">{t('Today')}</div>
-            <div className="ttl">{S.active ? (editingSaved ? S.active.name : t('{0} (in progress)', S.active.name))
+            <div className="ttl">{S.active ? (editingSaved ? S.active.name : isPaused(S.active) ? t('{0} (paused)', S.active.name) : t('{0} (in progress)', S.active.name))
               : doneToday ? (doneToday.name ? t('{0} (done)', doneToday.name) : t('Workout done'))
               : routine ? todayName : t('Rest day')}{todayOvr && routine && !doneToday ? ' · ' + t('rescheduled') : ''}</div>
             {next && !doneToday && <div className="ss">{t('Next session: {0}, {1}', t(DAYN[next.weekday]), next.routine.name)}</div>}
           </div>
         </div>
-        {S.active ? <span className="tag" style={{ color: 'var(--orange)', background: 'color-mix(in srgb,var(--orange) 16%,transparent)' }}>{editingSaved ? t('Edit') : t('Resume')}</span>
+        {S.active ? <span className="tag" style={{ color: 'var(--orange)', background: 'color-mix(in srgb,var(--orange) 16%,transparent)' }}>{editingSaved ? t('Edit') : isPaused(S.active) ? t('Paused') : t('Resume')}</span>
           : doneToday ? <span className="tag" style={{ color: 'var(--green)', background: 'color-mix(in srgb,var(--green) 16%,transparent)' }}>{t('Done')}</span>
           : routine ? <span className="tag acc">{t('Start')}</span>
           : <Icon name="plus" className="chev" />}
