@@ -207,14 +207,11 @@ async function pressProgression(index = 0) {
   return button
 }
 
-// Discard lives at the end of the header's ⋯ menu (v1.3.11); the header's ⌄ only leaves the screen.
+// Discard sits at the bottom of the workout, under the Finish button; the header's ⌄ only leaves the screen.
 async function requestDiscard() {
-  const button = container.querySelector('button[aria-label="Workout options"]')
-  expect(button).toBeTruthy()
-  await act(async () => { button.dispatchEvent(new dom.Event('click', { bubbles: true })) })
-  const discard = menuItemsOf(mocks.menuSheet.mock.calls.at(-1)[0]).find(it => it.label === 'Discard workout')
-  expect(discard?.danger).toBe(true)
-  await act(async () => { discard.onClick() })
+  const discard = [...container.querySelectorAll('button')].find(b => b.textContent === 'Discard workout')
+  expect(discard).toBeTruthy()
+  await act(async () => { discard.dispatchEvent(new dom.Event('click', { bubbles: true })) })
 }
 
 async function rerender() {
@@ -2344,16 +2341,16 @@ describe('workout view header menu', () => {
     return mocks.menuSheet.mock.calls.at(-1)[0]
   }
 
-  it('groups Workout settings, Add, This workout and Discard, then a Layout sheet with the four layouts marked current', async () => {
+  it('groups Workout settings, Add and This workout, then a Layout sheet with the four layouts marked current', async () => {
     await mount([exercise('plain-bench', [false])], 0, { active: { workoutView: 'list', routineIds: [] } })
 
     const menu = await openMenu()
-    expect(menu.sections.map(g => g.title)).toEqual([undefined, 'Add', 'This workout', undefined])
+    expect(menu.sections.map(g => g.title)).toEqual([undefined, 'Add', 'This workout'])
     expect(menuItemsOf(menu).map(it => it.label)).toEqual([
-      'Workout settings', 'Add exercise', 'Add routine', 'Rename workout', 'Layout', 'Add session note', 'Don’t count for progression', 'Discard workout',
+      'Workout settings', 'Add exercise', 'Add routine', 'Rename workout', 'Layout', 'Add session note', 'Don’t count for progression',
     ])
     expect(item(menu, 'Workout settings').sub).toBe('1:30 rest · Silent')
-    expect(item(menu, 'Discard workout').danger).toBe(true)
+    expect(menuItemsOf(menu).map(it => it.label)).not.toContain('Discard workout')
     expect(item(menu, 'Don’t count for progression')).toMatchObject({ sub: 'Every exercise in this workout', on: false })
     expect(item(menu, 'Layout').sub).toBe('List')
 

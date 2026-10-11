@@ -104,6 +104,16 @@ describe('Plan — How you train', () => {
     expect(css).toMatch(/^\.plan-sec-h>\.plan-sec-acts\{[^}]*margin-inline-start:auto/m)
   })
 
+  it('tapping a loop row opens that routine, but not while editing the loop', () => {
+    mount({ queue: live({ rotationId: 'r1' }), rotation: saved })
+    click(rows()[1])
+    expect(mocks.nav).toHaveBeenCalledWith('/plan/r/b')
+    mocks.nav.mockClear()
+    click(byLabel('Edit'))
+    click(rows()[0])
+    expect(mocks.nav).not.toHaveBeenCalled()
+  })
+
   it('back to Fixed Week with nothing running needs no confirmation', () => {
     mount({ scheduleMode: 'rotation' })
     pickMode('Fixed Week')

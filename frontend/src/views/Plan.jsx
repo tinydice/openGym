@@ -325,7 +325,10 @@ function Schedule({ S, update, nav, mode }) {
           // The loop's swipe is remove-only (v1.3.11). A routine can fill several slots, so rows are
           // keyed by slot. The row the reorder measures is the swipe's outer element.
           const reorderProps = { 'data-reorder-row': '', style: loopReorder.rowStyle(i) }
-          const row = <div {...(swipe ? {} : { key: id + ':' + i, ...reorderProps })} className={'item rotation-row' + (item?.state === 'done' ? ' is-done' : '')}>
+          // Tapping a slot opens its routine, the same page the Routines list opens. Not while
+          // reordering or removing, and never on a coach's read-only queue.
+          const open = !editing && !external && r ? () => nav('/plan/r/' + r.id) : undefined
+          const row = <div {...(swipe ? {} : { key: id + ':' + i, ...reorderProps })} {...tappable(open)} className={'item rotation-row' + (item?.state === 'done' ? ' is-done' : '')}>
             {editing && <button className="plan-minus" aria-label={t('Remove {0}', r?.name ?? id)} title={t('Remove')}
               onClick={() => takeOut(id, i)}><Icon name="minus" /></button>}
             <span className={'plan-order' + (item?.state === 'next' ? ' next' : '')}>{item?.state === 'done' ? <Icon name="check" /> : i + 1}</span>

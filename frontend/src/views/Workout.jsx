@@ -1443,9 +1443,6 @@ function ActiveWorkout() {
         { icon: 'note', label: A.note ? t('Edit session note') : t('Add session note'), onClick: sessionNoteSheet },
         noProgSwitchable && { icon: 'chartLineSlash', label: t('Don’t count for progression'), sub: t('Every exercise in this workout'), on: sessionNoProg(A), onClick: toggleSessionNoProg },
       ] },
-      { items: [
-        !editing && { icon: 'trash', label: t('Discard workout'), danger: true, onClick: discardWorkout },
-      ] },
     ],
   })
   // An exercise's own rest, from its ⋯ menu: the same wheel as the default rest timer, where 0:00
@@ -2079,6 +2076,9 @@ function ActiveWorkout() {
         {editing ? t('Save changes') : allDone ? t('Finish workout') : t('Finish workout early · {0} exercises', exDone + '/' + A.entries.length)}
       </button>
     })()}
+    {!editing && <div style={{ display: 'flex', justifyContent: 'center', marginTop: 10 }}>
+      <Button size="sm" icon="trash" style={{ color: 'var(--red)' }} onClick={discardWorkout}>{t('Discard workout')}</Button>
+    </div>}
     <div className="workout-end-spacer" />
   </WorkoutScrollAnchor>
 }

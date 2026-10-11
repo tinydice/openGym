@@ -82,7 +82,7 @@ describe('the connection dot on Home', () => {
 })
 
 // v1.3.11 icon sweep: one icon per concept. Every tab carries its name under the icon, Start is a
-// play button whether or not a session runs, and Exercises is the dumbbell (no more generic list).
+// a play button until a session runs (then pause), and Exercises is the dumbbell (no more generic list).
 describe('the tab icons and labels', () => {
   const icon = el => el.querySelector('svg')?.getAttribute('data-icon')
   const label = el => el.querySelector('span:last-child').textContent
@@ -92,7 +92,7 @@ describe('the tab icons and labels', () => {
     expect(tabs().map(label)).toEqual(['Home', 'Plan', 'Start', 'Stats', 'Exercises'])
 
     act(() => { useStore.getState().update(s => { s.active = { id: 'a', entries: [], cur: 0 } }, false) })
-    expect(icon(tabs()[2])).toBe('play')
+    expect(icon(tabs()[2])).toBe('pause')
     expect(label(tabs()[2])).toBe('Resume')
   })
 
