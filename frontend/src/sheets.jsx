@@ -2768,13 +2768,14 @@ export function DayNoteRow({ iso, note }) {
 /* ============================ workout lifecycle ============================ */
 // `routineIds` accepts `string | string[] | null` — `[r.id]` for one routine,
 // `effectiveRoutineIds(...)` for today's planned session, `[]` / null for explicit freestyle.
-export function startFlow(routineIds) {
+export function startFlow(routineIds, opts) {
   // The weigh-in is a setting (Settings → During a workout, issue #137): off goes straight
   // into the session with no body weight on it, same as "Start without weighing in".
-  if (S().weighIn === false) { beginWorkout(routineIds, null); return }
-  bwSheet({ required: true, onDone: bw => beginWorkout(routineIds, bw) })
+  if (S().weighIn === false) { beginWorkout(routineIds, null, opts); return }
+  bwSheet({ required: true, onDone: bw => beginWorkout(routineIds, bw, opts) })
 }
-export function beginWorkout(routineIds, bw) {
+// `opts.slot` is the place in the rotation the session was picked from (lib/queue.js).
+export function beginWorkout(routineIds, bw, opts) {
   const st = S()
   const { entries, routineIds: rids, routines } = buildCombinedEntries(st, routineIds)
   update(s => {
@@ -2783,6 +2784,7 @@ export function beginWorkout(routineIds, bw) {
       // A session tracks its routines as a list; per-entry `rid` carries which one each
       // exercise came from. No top-level `excludeFromProgression` — per-entry `noProg` does it.
       routineIds: rids,
+      ...(Number.isInteger(opts?.slot) ? { slot: opts.slot } : {}),
       name: routines.length ? deriveSessionName(routines.map(r => r.name)) : t('Freestyle'),
       bw: bw || null, cur: 0, entries,
       // Snapshot the layout at start so the header ⋮ can change it for this session only —

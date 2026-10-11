@@ -99,7 +99,7 @@ export default function Home() {
   const onToday = () => { if (S.active) nav('/workout'); else if (todayRoutines.length) startFlow(effectiveRoutineIds(S, todayISO())); else dayOverrideSheet(todayISO()) }
   // A chip on the coach week's progress row starts that one routine, in any order. A session
   // already in progress wins, as on the today row — starting another would overwrite it.
-  const onQueueStart = id => { if (S.active) nav('/workout'); else startFlow([id]) }
+  const onQueueStart = (id, slot) => { if (S.active) nav('/workout'); else startFlow([id], { slot }) }
 
   return <div className="narrow">
     <div className="hdr">

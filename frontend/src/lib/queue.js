@@ -30,6 +30,16 @@
 // is NEXT, never what counts as DONE, so weekTally, the reminders' tally and whatever a planner
 // reads back are untouched.
 //
+// WHERE THE LOOP IS — a workout started from a chip on Home's rotation row records the slot it
+// was picked from (`w.slot`, the index into `ids`). That workout is the one that slot is done by,
+// and the loop carries on from the slot after it: "up next" is the first session still to do from
+// there on, so picking the third session of a round does not leave the first one sitting up next
+// for ever. Sessions before that point that were never done read as 'skipped' and are not asked
+// for again this round; a round is complete once nothing is left to do after the last one picked.
+// A workout without a slot (started from "Up next", freestyle, imported, or from before this)
+// fills the session that is up next when it is for that routine, else the earliest open slot of
+// its routine, and moves nothing.
+//
 // DONE RULE — kept word for word with the api's reminder copy (api/queue.js), and the rule a
 // planner has to mirror, so nobody disagrees about which session is next: a session is done
 // when any FINISHED workout on that routine exists after the week was applied. Missed sets are
@@ -68,21 +78,37 @@ const countsFor = (S, q, w, id) => routineIdsOf(w).includes(id)
   && ((w.start ?? 0) >= q.since
     || (q.strict !== true && String(w.d || '') >= q.startsOn && nameParts(w).includes(S.routines.find(r => r.id === id)?.name)))
 
-// Per slot, in slot order: the nth slot of a routine is done once n workouts count for it.
-const doneSlots = (S, q) => {
-  const credits = {}, seen = {}
-  return q.ids.map(id => {
-    if (credits[id] == null) credits[id] = S.workouts.filter(w => countsFor(S, q, w, id)).length
-    seen[id] = (seen[id] || 0) + 1
-    return seen[id] <= credits[id]
-  })
+// Which slots are done, in slot order, and where the loop stands: `head` is the index of the
+// first session still to do from the last one picked on (`ids.length` when nothing is left). The
+// workouts are replayed oldest first, since the order they were done in is what moves the head.
+const slotState = (S, q) => {
+  const n = q.ids.length
+  const done = q.ids.map(() => false)
+  let cursor = 0
+  const head = () => { let i = cursor; while (i < n && done[i]) i++; return i }
+  const when = w => (Number.isFinite(w.start) ? w.start : 0)
+  const ordered = S.workouts.map((w, i) => [w, i]).sort((a, b) => when(a[0]) - when(b[0]) || a[1] - b[1]).map(x => x[0])
+  for (const w of ordered) {
+    for (const id of routineIdsOf(w)) {
+      if (!q.ids.includes(id) || !countsFor(S, q, w, id)) continue
+      let idx = -1
+      if (Number.isInteger(w.slot) && q.ids[w.slot] === id && !done[w.slot]) { idx = w.slot; cursor = idx + 1 }
+      else {
+        const h = head()
+        if (q.ids[h] === id) { idx = h; cursor = h + 1 }
+        else idx = q.ids.findIndex((x, i) => x === id && !done[i])
+      }
+      if (idx >= 0) done[idx] = true
+    }
+  }
+  return { done, head: head() }
 }
 
 /** The week's sessions already done, in slot order. `[]` without a queue. */
 export function queueDone(S) {
   const q = queueOf(S)
   if (!q) return []
-  const done = doneSlots(S, q)
+  const { done } = slotState(S, q)
   return q.ids.filter((id, i) => done[i])
 }
 
@@ -90,8 +116,20 @@ export function queueDone(S) {
 export function queueRemaining(S) {
   const q = queueOf(S)
   if (!q) return []
-  const done = doneSlots(S, q)
-  return q.ids.filter((id, i) => !done[i])
+  const { done, head } = slotState(S, q)
+  return q.ids.filter((id, i) => !done[i] && i >= head)
+}
+
+/**
+ * The slot a routine picked by hand would fill: its first session still to do from where the loop
+ * stands, the slot to record on the workout. `null` for a routine the loop does not have left.
+ */
+export function slotFor(S, id) {
+  const q = queueOf(S)
+  if (!q) return null
+  const { done, head } = slotState(S, q)
+  const i = q.ids.findIndex((x, n) => x === id && !done[n] && n >= head)
+  return i < 0 ? null : i
 }
 
 /**
@@ -141,7 +179,8 @@ export function queueLiveOn(S, iso, today) {
 export function pinState(S, id) {
   const q = queueOf(S)
   if (!q || !id || !q.ids.includes(id)) return null
-  return queueRemaining(S).includes(id) ? 'open' : 'done'
+  const { done } = slotState(S, q)
+  return q.ids.some((x, i) => x === id && !done[i]) ? 'open' : 'done'
 }
 
 /**
@@ -160,10 +199,11 @@ export function queueView(S, today) {
   const pins = activePins(S, remaining, today).sort((a, b) => (a.iso < b.iso ? -1 : a.iso > b.iso ? 1 : 0))
   // A routine the planner has since retired keeps its id as the name — better than a blank chip.
   const nameOf = id => S.routines.find(r => r.id === id)?.name ?? id
-  // A routine in several slots: only its first open slot is 'next' or 'pinned'.
-  const done = doneSlots(S, q)
+  // A routine in several slots: only its first open slot is 'next' or 'pinned'. Slots before the
+  // head that were never done are 'skipped' — the loop moved past them.
+  const { done, head } = slotState(S, q)
   const firstOpen = {}
-  q.ids.forEach((id, i) => { if (!done[i] && firstOpen[id] == null) firstOpen[id] = i })
+  q.ids.forEach((id, i) => { if (!done[i] && i >= head && firstOpen[id] == null) firstOpen[id] = i })
   return {
     label: q.label || '',
     items: q.ids.map((id, i) => {
@@ -172,7 +212,7 @@ export function queueView(S, today) {
       const pin = lead && !isNext && pins.find(p => p.id === id && p.iso !== on)
       return {
         id, name: nameOf(id),
-        state: done[i] ? 'done' : isNext ? 'next' : pin ? 'pinned' : 'later',
+        state: done[i] ? 'done' : i < head ? 'skipped' : isNext ? 'next' : pin ? 'pinned' : 'later',
         ...(pin ? { on: pin.iso } : {}),
       }
     }),

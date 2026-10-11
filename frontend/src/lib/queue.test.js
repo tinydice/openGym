@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { queueDone, queueRemaining, queueNext, queueView, weekTally, pinState, queueOf } from './queue.js'
+import { queueDone, queueRemaining, queueNext, queueView, weekTally, pinState, queueOf, slotFor } from './queue.js'
 
 // The DONE RULE is shared with the api's reminder copy (and any planner writing S.queue); these
 // cases are the ones every copy must agree on. Dates are plain strings so nothing here reads the clock.
@@ -359,5 +359,60 @@ describe('a routine in several slots', () => {
     const st = S({ queue: Q, workouts: [on('d1', 1)] })
     expect(pinState(st, 'd1')).toBe('open')
     expect(pinState(S({ queue: Q, workouts: [on('d1', 1), on('d1', 2)] }), 'd1')).toBe('done')
+  })
+})
+
+describe('picking a session out of order', () => {
+  const states = S_ => queueView(S_, TODAY).items.map(i => i.state)
+  const at = n => SINCE + n * 3600000
+
+  it('a workout picked from its slot makes the session after it up next, and the ones before it skipped', () => {
+    const S_ = S({ workouts: [w({ routineIds: ['d2'], start: at(1), slot: 1 })] })
+    expect(states(S_)).toEqual(['skipped', 'done', 'next'])
+    expect(queueRemaining(S_)).toEqual(['d3'])
+    expect(queueNext(S_, TODAY, TODAY)).toBe('d3')
+    expect(queueView(S_, TODAY).complete).toBe(false)
+  })
+
+  it('the round is complete once nothing is left after the last one picked', () => {
+    const S_ = S({ workouts: [w({ routineIds: ['d3'], start: at(1), slot: 2 })] })
+    expect(states(S_)).toEqual(['skipped', 'skipped', 'done'])
+    expect(queueView(S_, TODAY).complete).toBe(true)
+  })
+
+  it('without a slot nothing moves: in order it fills the up-next session, out of order the earliest open one', () => {
+    expect(states(S({ workouts: [w({ routineIds: ['d1'], start: at(1) })] }))).toEqual(['done', 'next', 'later'])
+    const outOfOrder = S({ workouts: [w({ routineIds: ['d3'], start: at(1) })] })
+    expect(states(outOfOrder)).toEqual(['next', 'later', 'done'])
+    expect(queueNext(outOfOrder, TODAY, TODAY)).toBe('d1')
+  })
+
+  it('carries on in order after a pick', () => {
+    const S_ = S({
+      queue: { ids: ['d1', 'd2', 'd3', 'own'], since: SINCE, startsOn: '2026-09-07', label: 'x' },
+      workouts: [w({ routineIds: ['d2'], start: at(1), slot: 1 }), w({ id: 'w2', routineIds: ['d3'], start: at(2) })],
+    })
+    expect(states(S_)).toEqual(['skipped', 'done', 'done', 'next'])
+  })
+
+  it('a routine in two slots is done by the slot that was picked', () => {
+    const base = { queue: { ids: ['d1', 'd2', 'd1', 'd3'], since: SINCE, startsOn: '2026-09-07', label: 'x' } }
+    const picked = S({ ...base, workouts: [w({ routineIds: ['d1'], start: at(1), slot: 2 })] })
+    expect(states(picked)).toEqual(['skipped', 'skipped', 'done', 'next'])
+    const inOrder = S({ ...base, workouts: [w({ routineIds: ['d1'], start: at(1) })] })
+    expect(states(inOrder)).toEqual(['done', 'next', 'later', 'later'])
+  })
+
+  it('slotFor names the first open slot of a routine from where the loop stands', () => {
+    const S_ = S({ queue: { ids: ['d1', 'd2', 'd1', 'd3'], since: SINCE, startsOn: '2026-09-07', label: 'x' }, workouts: [w({ routineIds: ['d2'], start: at(1), slot: 1 })] })
+    expect(slotFor(S_, 'd1')).toBe(2)
+    expect(slotFor(S_, 'd3')).toBe(3)
+    expect(slotFor(S_, 'own')).toBeNull()
+    expect(slotFor({ routines, workouts: [], queue: null }, 'd1')).toBeNull()
+  })
+
+  it('a slot that does not belong to the workout’s routine is ignored', () => {
+    const S_ = S({ workouts: [w({ routineIds: ['d1'], start: at(1), slot: 2 })] })
+    expect(states(S_)).toEqual(['done', 'next', 'later'])
   })
 })

@@ -273,7 +273,7 @@ function Schedule({ S, update, nav, mode }) {
   const plannedDays = weekOrder(ws).filter(d => extraRoutines(d).length)
   const doneCount = qv ? qv.items.filter(i => i.state === 'done').length : 0
   const stateWord = item => item.state === 'pinned' ? fmtDate(item.on, true)
-    : { done: t('Done'), next: t('Up next'), later: t('Later') }[item.state]
+    : { done: t('Done'), next: t('Up next'), later: t('Later'), skipped: t('Skipped') }[item.state]
   const editing = editLoop && !external
 
   return <>
@@ -348,7 +348,7 @@ function Schedule({ S, update, nav, mode }) {
       </div> : <div className="empty">{t('No rotation yet. Add routines in the order you want to train them. The first one you haven’t logged stays up next.')}</div>}
       {seq.length > 0 && <p className="sect-f">
         {qv ? (qv.waiting ? t('Next round starts {0}.', fmtDate(qv.startsOn, true)) : t('{0} of {1} done this round.', doneCount, qv.items.length)) + ' ' : ''}
-        {external ? '' : editing ? t('Drag to reorder. Tap the minus to take one out.') : t('Trained out of order? Just pick another routine on Home.')}
+        {external ? '' : editing ? t('Drag to reorder. Tap the minus to take one out.') : t('Pick any routine on Home and the loop carries on from it.')}
       </p>}
       <div className="row" style={{ gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
         {external && <Button size="sm" variant="tinted" aria-label={t('Use this rotation')} onClick={adopt}>{t('Use this rotation')}</Button>}

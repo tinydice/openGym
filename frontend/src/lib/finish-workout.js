@@ -115,6 +115,8 @@ export function buildCompletedWorkout(active, { end = Date.now(), prs = [], snap
     end,
     routineIds,
     routineId: routineIds[0] ?? null,
+    // The place in the rotation it was picked from, for lib/queue.js.
+    ...(Number.isInteger(active.slot) ? { slot: active.slot } : {}),
     name: active.name,
     bw: active.bw,
     entries,

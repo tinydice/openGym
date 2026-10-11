@@ -96,7 +96,8 @@ describe('Home — coach week progress row', () => {
     mount()
     act(() => { chips()[2].click() })
     expect(startFlow).toHaveBeenCalledTimes(1)
-    expect(startFlow).toHaveBeenCalledWith(['d3'])
+    // the chip's own place in the loop rides along, so the loop carries on from it
+    expect(startFlow).toHaveBeenCalledWith(['d3'], { slot: 2 })
     act(() => { chips()[0].click() })
     expect(startFlow).toHaveBeenCalledTimes(1)
   })
@@ -284,7 +285,7 @@ describe('Home — a session pinned to a day', () => {
     mount()
     act(() => { chips()[0].click() })
     expect(startFlow).toHaveBeenCalledTimes(1)
-    expect(startFlow).toHaveBeenCalledWith(['d1'])
+    expect(startFlow).toHaveBeenCalledWith(['d1'], { slot: 0 })
   })
 })
 
