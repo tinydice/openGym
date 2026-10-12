@@ -182,7 +182,7 @@ function MuscleBalance({ S }) {
     const fill = target > 0 ? Math.round(Math.min(completed / target, 1) * 100) : completed > 0 ? 100 : 0
     const completedSets = t('{0} sets', fmtNum(completed))
     const plannedSets = t('{0} sets', fmtNum(target))
-    return <div className="mrow" data-muscle-volume={muscle} key={muscle}>
+    return <div className="mrow cmp" data-muscle-volume={muscle} key={muscle}>
       <span className="nm">{sel === muscle ? <b>{t(MUSCLE_NAME[muscle])}</b> : t(MUSCLE_NAME[muscle])}</span>
       <span className="bar"><i style={{ width: fill + '%' }} /></span>
       <span className="v" style={{ textAlign: 'end' }}

@@ -151,20 +151,9 @@ export default function Home() {
     {/* The today row and the tab bar's play both go to the planned session, so the Start screen
         (another routine, or a freestyle session) needs a door of its own. It opens that screen and
         starts nothing. Gone while a session is open: that one comes first. */}
-    {!S.active && (
-      <div className="card tappable" style={{ cursor: 'pointer' }} {...tappable(() => nav('/workout'))}>
-        <div className="row between">
-          <div className="row" style={{ gap: 9 }}>
-            <span className="lrow-i" style={{ background: 'var(--acc)' }}><Icon name="swap" /></span>
-            <div>
-              <div className="lbl2">{t('Something else')}</div>
-              <div className="ttl" style={{ color: 'var(--acc)' }}>{t('Choose a different workout')}</div>
-            </div>
-          </div>
-          <Icon name="chevronRight" className="chev" />
-        </div>
-      </div>
-    )}
+    {!S.active && <div style={{ marginBottom: 16 }}>
+      <Button icon="swap" onClick={() => nav('/workout')}>{t('Choose a different workout')}</Button>
+    </div>}
 
     {!S.routines.length && !S.active && (
       <div className="card">
