@@ -223,6 +223,10 @@ export function queueView(S, today) {
   }
 }
 
+/** How many sessions of an in-app rotation a week holds: every other day is 3 or 4, so 4. */
+export const ROTATION_SESSIONS_PER_WEEK = 4
+export const rotationSessionsPerWeek = S => (Number(S?.rotation?.perWeek) > 0 ? Number(S.rotation.perWeek) : ROTATION_SESSIONS_PER_WEEK)
+
 /**
  * The streak card's fraction, `done / planned`, for the week `today` is in. Without a queue it
  * is the calendar week's finished workouts over the weekdays that hold a plan of routines that
@@ -249,6 +253,10 @@ export function weekTally(S, today) {
   const ownIds = ids => [].concat(ids || []).filter(id => S.routines.some(r => r.id === id) && unqueued(id))
   const ownDays = Object.values(S.week || {}).filter(ids => ownIds(ids).length).length
   if (!q) return { done: thisWeek.length, planned: ownDays }
+  // A rotation this app manages is a loop run a few sessions a week, not a week of its own: its
+  // week plans that many sessions (never more than the loop holds), and every workout this
+  // calendar week counts, loop or not.
+  if (q.rotationId) return { done: thisWeek.length, planned: Math.min(q.ids.length, rotationSessionsPerWeek(S)) + ownDays }
   // The workout that earns each session its credit is the earliest one the DONE RULE accepts
   // (by date, not array position — a backfilled log is not always in order); every other
   // workout this week is training on top, and so is a crediting workout's own half.

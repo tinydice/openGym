@@ -416,3 +416,18 @@ describe('picking a session out of order', () => {
     expect(states(S_)).toEqual(['done', 'next', 'later'])
   })
 })
+
+describe('the streak card with an in-app rotation', () => {
+  const at = n => SINCE + n * 3600000
+  const loop = (over = {}) => S({ queue: { ids: Array(16).fill('d1'), since: SINCE, startsOn: '2026-09-07', label: 'Rotation', rotationId: 'r' }, ...over })
+
+  it('plans 4 sessions a week, not the whole loop, and counts every workout this week', () => {
+    expect(weekTally(loop(), TODAY)).toEqual({ done: 0, planned: 4 })
+    const ws = [w({ id: 'a', routineIds: ['d1'], start: at(1) }), w({ id: 'b', routineIds: ['own'], start: at(2), d: '2026-09-09' })]
+    expect(weekTally(loop({ workouts: ws }), TODAY)).toEqual({ done: 2, planned: 4 })
+  })
+
+  it('never plans more than the loop holds', () => {
+    expect(weekTally(loop({ queue: { ids: ['d1', 'd2'], since: SINCE, startsOn: '2026-09-07', label: 'R', rotationId: 'r' } }), TODAY).planned).toBe(2)
+  })
+})
