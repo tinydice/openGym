@@ -294,10 +294,15 @@ export function muscleBalanceWindow(workouts, win, now = Date.now(), today = tod
 export const loadOfRoutine = (routine, exercises = {}) =>
   loadOf((routine?.ex || []).map(c => ({ id: c.id, ex: exercises[c.id] || c, sets: c.sets || 1 })))
 
+/** How many sessions of an in-app rotation a week holds, unless the rotation says otherwise. */
+export const ROTATION_SESSIONS_PER_WEEK = 4
+
 /**
  * Effective sets programmed by the live recurring week; overrides and history are not plans.
- * A floating week or rotation (S.queue, lib/queue.js) is the plan too: each of its sessions once,
- * beside your own weekday routines — the same split the Home streak card tallies (weekTally).
+ * A floating week or rotation (S.queue, lib/queue.js) is the plan too, beside your own weekday
+ * routines. A coach's queue is one week, each session once. A rotation this app manages is a loop
+ * of any length run a few sessions a week (`S.rotation.perWeek`, else ROTATION_SESSIONS_PER_WEEK),
+ * so its week is that share of the whole loop: a 16-session loop at 4 a week plans a quarter of it.
  */
 export function loadOfWeeklyPlan(S) {
   const routines = new Map((S?.routines || []).map(routine => [routine.id, routine]))
@@ -308,14 +313,18 @@ export function loadOfWeeklyPlan(S) {
     ...Object.values(S?.week || {}).flatMap(value => [].concat(value || [])).filter(id => !queued.has(id)),
     ...(q ? q.ids : []),
   ]
+  const perWeek = Number(S?.rotation?.perWeek) > 0 ? Number(S.rotation.perWeek) : ROTATION_SESSIONS_PER_WEEK
+  const share = q && q.rotationId && q.ids.length > perWeek ? perWeek / q.ids.length : 1
+  const weekdayCount = ids.length - (q ? q.ids.length : 0)
   const load = {}
-  for (const id of ids) {
+  ids.forEach((id, i) => {
     const routine = routines.get(id)
-    if (!routine) continue
+    if (!routine) return
+    const f = i < weekdayCount ? 1 : share
     for (const [slug, sets] of Object.entries(loadOfRoutine(routine, exercises))) {
-      load[slug] = (load[slug] || 0) + sets
+      load[slug] = (load[slug] || 0) + sets * f
     }
-  }
+  })
   return load
 }
 

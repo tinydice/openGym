@@ -207,6 +207,17 @@ describe('planned weekly muscle volume', () => {
     expect(loadOfWeeklyPlan(queued)).toEqual({ chest: 4, triceps: 1.6, biceps: 3 })
   })
 
+  it('plans an in-app rotation by the share of the loop a week holds', () => {
+    // a loop of 8 'push' sessions at the default 4 a week: half the loop is one week's plan
+    const loop = { ...state, week: {}, queue: { ids: Array(8).fill('push'), since: 0, startsOn: '2026-08-17', rotationId: 'r' } }
+    const near = (load, want) => { expect(Object.keys(load).sort()).toEqual(Object.keys(want).sort()); for (const k in want) expect(load[k]).toBeCloseTo(want[k]) }
+    near(loadOfWeeklyPlan(loop), { chest: 8, triceps: 3.2 })
+    // the rotation can say how many sessions a week it runs
+    near(loadOfWeeklyPlan({ ...loop, rotation: { id: 'r', sequence: [], perWeek: 2 } }), { chest: 4, triceps: 1.6 })
+    // a coach's queue (no rotationId) is a week as it stands
+    near(loadOfWeeklyPlan({ ...loop, queue: { ...loop.queue, rotationId: undefined } }), { chest: 16, triceps: 6.4 })
+  })
+
   it('returns an empty projection for missing or empty plans', () => {
     expect(loadOfWeeklyPlan()).toEqual({})
     expect(loadOfWeeklyPlan({ routines: [], week: { 1: ['missing'] } })).toEqual({})

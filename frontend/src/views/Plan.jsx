@@ -370,10 +370,10 @@ function Schedule({ S, update, nav, mode }) {
       </>}
     </div>}
 
-    {/* Weekly muscle volume is analysis: it moved to Stats, next to Muscle balance. Stats only
-        shows that card once there is a routine, so the link waits for one too. */}
+    {/* Weekly muscle volume is analysis: it lives in Stats, as Muscle balance's Week view (sets done
+        this week against the plan). The link waits for a routine, since without one nothing is planned. */}
     {S.routines.length > 0 && <Section className="plan-link">
-      <Row icon="chart" iconTint="var(--indigo)" title={t('Weekly muscle volume')} subtitle={t('Now in Stats, next to Muscle balance')}
+      <Row icon="chart" iconTint="var(--indigo)" title={t('Weekly muscle volume')} subtitle={t('Planned vs done, in Stats → Muscle balance')}
         accessory="chevron" onClick={() => nav('/stats?focus=weekly-volume')} />
     </Section>}
   </>

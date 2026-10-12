@@ -221,7 +221,7 @@ function MuscleBalance({ S }) {
     {completionSummary}
   </>
 
-  return <div className="card">
+  return <div className="card" id="weekly-volume">
     <Segmented className="seg-range" value={view} onChange={setView}
       options={[{ value: 'balance', label: t('Muscle balance') }, { value: 'fatigue', label: t('Fatigue') }, { value: 'strength', label: t('Strength') }]} />
     {view === 'balance' ? <>
@@ -241,6 +241,8 @@ function MuscleBalance({ S }) {
         </div>
         <BodyMap className="tappable" load={load} body={S.body} selected={sel} onMuscle={toggleSel} />
         <BodyMapLegend />
+        {weekOffset === 0 && comparisonRows.length > 0 && <div className="muted small" style={{ margin: '10px 0 2px' }}>
+          {t('Sets done this week / planned per week')}</div>}
         {weekOffset === 0
           ? comparisonRows.length ? <>{comparisonRows}{weeklyToggle(comparisonMuscles.length)}{completionSummary}</> : <div className="muted small">{t('No workouts in this period yet.')}</div>
           : inWin.length ? completedRows : <div className="muted small">{t('No workouts in this period yet.')}</div>}
@@ -307,109 +309,11 @@ function MuscleBalance({ S }) {
 }
 
 
-// How hard the training was — the half of the picture a volume chart cannot show. Everything
-// is computed in RIR (lib/effort.js) and converted to whichever scale this profile reads.
-// Every number carries how much of the training it speaks for: rating is optional and off by
-// default, so a partly rated history is the normal case, and an average without its
-// denominator would quietly speak for sets that were never rated.
-function EffortCard({ S }) {
-  const [win, setWin] = useState(90)
-  const kind = displayScale(S)
-  const hd = scaleName(kind)
-  const logged = effortSummary(S, win)
-  // Thin or missing ratings fall back to estimates (same precedence fatigue scoring
-  // uses), so imported histories get an effort card too. Well-rated windows keep
-  // their logged numbers untouched - estimates never dilute a real average.
-  const blend = logged.rated < MIN_RATED
-  // Same options as the fatigue map (unit + profile bodyweight), so a bodyweight set is
-  // estimated against the same body-mass-inclusive anchor in both places.
-  const opts = useMemo(() => ({ unit: S.unit, bodyweightKg: profileBodyweightKg(S) }), [S.unit, S.bodyweight])
-  const anchors = useMemo(
-    () => (blend ? anchorsByWorkout(S.workouts, opts) : new Map()),
-    [blend, S.workouts, opts],
-  )
-  const resolve = (s, w, e) => resolveSetRir(s, s, e, w, anchors.get(w), opts)
-  const sum = blend ? effortSummary(S, win, resolve) : logged
-  const weeks = blend ? effortWeeks(S, win, resolve) : effortWeeks(S, win)
-  const hist = blend ? effortHistogram(S, win, resolve) : effortHistogram(S, win)
-  const estimated = blend && sum.est > 0
-  const maxBin = Math.max(1, ...hist.map(b => b.n))
-  // The week's set count rides along in the tooltip, because the pair is the reading:
-  // volume up with effort up is fatigue piling up, volume up with effort flat is adaptation.
-  const pts = weeks.map(w => ({ t: w.t, y: toScale(kind, w.rir), note: t('{0} sets', w.sets) }))
-  // Bins run hardest-first in both scales: RIR 0 and RPE 10 are the same set.
-  const binLabel = b => kind === 'rpe' ? (b.tail ? '≤ 6' : String(10 - b.rir)) : (b.tail ? b.rir + '+' : String(b.rir))
-
-  return <div className="card">
-    <h2>{t('Effort')} <span className="dim" style={{ textTransform: 'none', letterSpacing: 0 }}>· {t('how close to failure')}{estimated ? ' · ' + t('estimated') : ''}</span></h2>
-    <Segmented className="seg-range" value={win} onChange={setWin}
-      options={[{ value: 30, label: '30d' }, { value: 90, label: '90d' }, { value: 365, label: '1Y' }, { value: 0, label: t('All') }]} />
-    {sum.rated === 0 && sum.est === 0 ? <div className="muted small">{t('No rated sets in this period.')}</div> : <>
-      <div className="row between" style={{ alignItems: 'flex-end', gap: 12 }}>
-        <div>
-          <div className="stat-v">{sum.avg == null ? '–' : fmtNum(toScale(kind, sum.avg)) + ' ' + hd}</div>
-          <div className="small dim">{t('average effort')}</div>
-        </div>
-        <div style={{ textAlign: 'end' }}>
-          <div className="stat-v" style={{ color: 'var(--yellow)' }}>{sum.hardPct == null ? '–' : Math.round(sum.hardPct * 100) + '%'}</div>
-          <div className="small dim">{t('at {0} {1} or harder', hd, fmtNum(toScale(kind, HARD_RIR)))}</div>
-        </div>
-      </div>
-      <div className="small dim" style={{ marginTop: 8 }}>{estimated
-        ? t('{0} rated · {1} estimated of {2} sets', sum.rated, sum.est, sum.done)
-        : t('{0} of {1} finished sets rated', sum.rated, sum.done)}</div>
-      {effortOf(S) === 'none' && <div className="small" style={{ color: 'var(--yellow)', marginTop: 4 }}>
-        {t('Effort per set is off. Turn it on in Settings → Workout to keep rating.')}
-      </div>}
-      {pts.length > 1 && <>
-        <h4 className="sec" style={{ marginTop: 12 }}>{t('Week by week')}</h4>
-        <div className="chart"><LineChart points={pts} h={140} unit={hd} color="var(--yellow)" invert={kind === 'rir'} /></div>
-      </>}
-      <h4 className="sec" style={{ marginTop: 12 }}>{t('Where the sets land')}</h4>
-      {hist.map(b => <div key={b.rir} className="mrow">
-        <span className="nm">{hd} {binLabel(b)}</span>
-        <span className="bar"><i style={{ width: Math.round(b.n / maxBin * 100) + '%', background: b.rir <= HARD_RIR ? 'var(--yellow)' : 'var(--label-3)' }} /></span>
-        <span className="v">{b.n ? b.n + ' · ' + Math.round(b.pct * 100) + '%' : '–'}</span>
-      </div>)}
-      <div className="small dim" style={{ marginTop: 8 }}>
-        {t('Most working sets belong close to failure, not at it. Half at the floor and half at the top still average out to a healthy-looking middle.')}
-      </div>
-    </>}
-  </div>
-}
-
-// Stats = the analytics hub: all charts, progress and history live here.
-// The muscle volume your plan programs in a week: every weekday routine once, plus each session
-// of a running rotation (lib/muscles.js loadOfWeeklyPlan). It used to sit on Plan; it is analysis,
-// so it lives here now, next to Muscle balance, and Plan links to it (/stats?focus=weekly-volume).
-const PLAN_VOLUME_ROWS = 5
-export function WeeklyPlanVolume({ S }) {
-  const [all, setAll] = useState(false)
-  const load = loadOfWeeklyPlan(S)
-  const muscles = rankOf(load).worked
-  const shown = all ? muscles : muscles.slice(0, PLAN_VOLUME_ROWS)
-  const max = muscles.length ? load[muscles[0]] : 0
-  return <div className="card" id="weekly-volume" data-weekly-muscle-volume>
-    <h2 style={{ marginBottom: 2 }}>{t('Weekly muscle volume')}</h2>
-    <div className="muted small" style={{ marginBottom: 10 }}>{t('Planned sets per week, from your plan.')}</div>
-    {muscles.length ? shown.map(muscle => <div className="mrow" key={muscle}>
-      <span className="nm">{t(MUSCLE_NAME[muscle])}</span>
-      <span className="bar"><i style={{ width: Math.round(load[muscle] / max * 100) + '%' }} /></span>
-      <span className="v">{t('{0} sets', fmtNum(Math.round(load[muscle] * 10) / 10))}</span>
-    </div>) : <div className="muted small">{t('No muscle volume planned.')}</div>}
-    {muscles.length > PLAN_VOLUME_ROWS && <>
-      <div style={{ height: 8 }} />
-      <Button className="weekly-plan-toggle" trailingIcon={all ? 'chevronUp' : 'chevronDown'} aria-expanded={all}
-        onClick={() => setAll(v => !v)}>{t(all ? 'Show less' : 'Show more')}</Button>
-    </>}
-  </div>
-}
-
 export default function Stats() {
   const nav = useNavigate()
   const S = useStore(s => s.S)
   const [range, setRange] = useState(90)
-  // Plan's "Weekly muscle volume" row lands here (/stats?focus=weekly-volume). The router is a
+  // Plan's "Weekly muscle volume" row lands on Muscle balance (/stats?focus=weekly-volume). The router is a
   // HashRouter, so the query sits in the hash; the scroll waits a frame for the page's own
   // scroll-to-top on navigation to have happened first.
   useEffect(() => {
@@ -656,8 +560,13 @@ export default function Stats() {
     </div>
 
     {(workouts.length > 0 || Object.keys(loadOfWeeklyPlan(S)).length > 0) && <MuscleBalance S={S} />}
-    {S.routines.length > 0 && <WeeklyPlanVolume S={S} />}
-    {(hasEffort(S) || hasEstimableEffort(S)) && <EffortCard S={S} />}
+    {workouts.length > 0 && <>
+      <div className="row between" style={{ marginBottom: 10 }}>
+        <h4 className="sec" style={{ margin: 0 }}>{t('Recent workouts')}</h4>
+        <Button size="sm" variant="ghost" trailingIcon="chevronRight" onClick={() => nav('/history')}>{t('All')} {workouts.length}</Button>
+      </div>
+      <div className="list" style={{ marginBottom: 24 }}>{[...workouts].reverse().slice(0, 6).map(w => <WorkoutRow key={w.id} w={w} onClick={() => workoutDetailSheet(w)} />)}</div>
+    </>}
 
     <div className="cols">
       <div className="card">
@@ -729,13 +638,6 @@ export default function Stats() {
       </div>
     </div>
 
-    {workouts.length > 0 && <>
-      <div className="row between" style={{ marginBottom: 10 }}>
-        <h4 className="sec" style={{ margin: 0 }}>{t('Recent workouts')}</h4>
-        <Button size="sm" variant="ghost" trailingIcon="chevronRight" onClick={() => nav('/history')}>{t('All')} {workouts.length}</Button>
-      </div>
-      <div className="list" style={{ marginBottom: 24 }}>{[...workouts].reverse().slice(0, 6).map(w => <WorkoutRow key={w.id} w={w} onClick={() => workoutDetailSheet(w)} />)}</div>
-    </>}
     {workouts.length > 0 && <div className="card row between" style={{ alignItems: 'center', gap: 12 }}>
       <div style={{ minWidth: 0 }}><h2 style={{ margin: 0 }}>{t('Structural balance')}</h2>
         <div className="muted small" style={{ marginTop: 4 }}>{t('See which lift is holding back the rest.')}</div></div>
