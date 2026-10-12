@@ -3336,6 +3336,17 @@ describe('the workout screen chrome (v1.3.11)', () => {
   const click = async el => { await act(async () => { el.dispatchEvent(new dom.Event('click', { bubbles: true })) }) }
   const openMore = () => click(container.querySelector('button[aria-label="More"]'))
 
+  it('‹ out of a session never started and never ticked drops it; a ticked set keeps it', async () => {
+    await mount([exercise('plain-bench', [false])], 0, { active: { pausedAt: Date.now(), notStarted: true } })
+    await click(container.querySelector('button[aria-label="Minimize"]'))
+    expect(mocks.nav).toHaveBeenCalledWith('/home')
+    expect(mocks.S.active).toBeNull()
+
+    await mount([exercise('plain-bench', [true])], 0, { active: { pausedAt: Date.now(), notStarted: true } })
+    await click(container.querySelector('button[aria-label="Minimize"]'))
+    expect(mocks.S.active).not.toBeNull()
+  })
+
   it('has a labelled Finish pill and a ⌄ that leaves the screen with the session still running', async () => {
     await mount([exercise('plain-bench', [false])])
     const pill = container.querySelector('.whdr-finish')

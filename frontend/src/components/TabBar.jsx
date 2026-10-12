@@ -58,7 +58,7 @@ export default function TabBar({ onStart }) {
           screen you are on. A session opened but not started reads Start; one that has run shows
           its time, frozen while paused. A past workout being edited or logged after the fact has
           no clock, so there the button just goes back to it. */}
-      <button className={'start' + (S.active ? ' rec' : '') + (paused ? ' paused' : '') + (S.active && cur === 'workout' ? ' on' : '')} onClick={startWorkout}
+      <button className={'start' + (S.active && !fresh ? ' rec' : '') + (paused ? ' paused' : '') + (S.active && cur === 'workout' ? ' on' : '')} onClick={startWorkout}
         aria-label={running ? (fresh ? t('Start workout') : paused ? t('Resume') : t('Pause')) : undefined}>
         <span className="cir"><Icon name={running && !paused ? 'pause' : 'play'} /></span>
         {running ? (fresh ? <span>{t('Start')}</span> : <span className="tab-time"><Elapsed start={S.active.start} pausedAt={S.active.pausedAt} /></span>)

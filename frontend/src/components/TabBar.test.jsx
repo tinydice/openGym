@@ -128,6 +128,8 @@ describe('the tab icons and labels', () => {
       act(() => { useStore.getState().update(s => { s.active = { id: 'b', entries: [], cur: 0, start: Date.now(), pausedAt: Date.now(), notStarted: true } }, false) })
       expect(label(tabs()[2])).toBe('Start')
       expect(icon(tabs()[2])).toBe('play')
+      // a session only opened is not a workout yet: no orange recording state
+      expect(tabs()[2].className).not.toContain('rec')
       act(() => { vi.advanceTimersByTime(30_000) })
       act(() => { tabs()[2].click() })
       expect(useStore.getState().S.active.notStarted).toBeUndefined()

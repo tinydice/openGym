@@ -41,7 +41,7 @@ import { sessionNoProg, setSessionNoProg, setEntryNoProg, joinSessionNoProg } fr
 import { glyphOf, DEFAULT_GLYPH } from '../lib/glyphs.js'
 import { markAllSetsDone, sessionHistory } from '../lib/backfill.js'
 import { bestSetFor } from '../lib/exercise-history.js'
-import { isWarmupRow, isFailureSet, toggleFailure, isDropSet, isRestPauseSet, dropsOf, clustersOf, addDrop, addCluster, removeDropAt, removeClusterAt, setDropAt, setClusterAt, nextDropWeight, nextBurstReps, isSideSet, makeSideSet, setSideField, toggleSide, addSideDrop, removeSideDropAt, setSideDropAt, addSideCluster, removeSideClusterAt, setSideClusterAt, WEIGHT_ORIGIN_MANUAL } from '../lib/workout-model.js'
+import { hasCompletedWork, isWarmupRow, isFailureSet, toggleFailure, isDropSet, isRestPauseSet, dropsOf, clustersOf, addDrop, addCluster, removeDropAt, removeClusterAt, setDropAt, setClusterAt, nextDropWeight, nextBurstReps, isSideSet, makeSideSet, setSideField, toggleSide, addSideDrop, removeSideDropAt, setSideDropAt, addSideCluster, removeSideClusterAt, setSideClusterAt, WEIGHT_ORIGIN_MANUAL } from '../lib/workout-model.js'
 import { canMoveActiveWorkoutUnit, moveActiveWorkoutUnit, canMoveActiveWorkoutEntry, moveActiveWorkoutEntry } from '../lib/active-workout-order.js'
 import { nextOpenSet, workoutKeyAction } from '../lib/workout-keys.js'
 import { MUSCLE_NAME } from '../lib/muscles.js'
@@ -1429,6 +1429,13 @@ function ActiveWorkout() {
   })
   // Ending the session without saving it. The ⋯ menu's last item since the header's ✕ became the
   // ⌄ that only leaves the screen (v1.3.11).
+  // ‹ out of a session never started, with nothing ticked, was only a look at it: it goes away
+  // rather than sitting on Home as an open workout. Anything logged keeps it.
+  const leaveWorkout = () => {
+    const untouched = !A.entries.some(e => (e.sets || []).some(hasCompletedWork))
+    if (fresh && untouched) { update(s => { s.active = null }); stopRest(); stopWork() }
+    nav('/home')
+  }
   const discardWorkout = () => confirmSheet({
     title: t('Discard workout?'), message: t('The sets you logged in this session will be lost.'), confirmText: t('Discard'), danger: true,
     onConfirm: () => { update(s => { s.active = null }); stopRest(); stopWork(); nav('/home') },
@@ -1925,7 +1932,7 @@ function ActiveWorkout() {
     <div className="hdr whdr-bar">
       {editing
         ? <button className="iconbtn" aria-label={t('Close editor')} title={t('Close editor')} onClick={() => exitWorkoutEdit()}><Icon name="xmark" /></button>
-        : <button className="iconbtn" aria-label={t('Minimize')} title={t('Minimize')} onClick={() => nav('/home')}><Icon name="chevronLeft" /></button>}
+        : <button className="iconbtn" aria-label={t('Minimize')} title={t('Minimize')} onClick={leaveWorkout}><Icon name="chevronLeft" /></button>}
       <div className="whdr-mid"><div className="whdr-name">{A.name}</div><div className="sub">{(A.backfill || editing) ? fmtDate(A.d, true)
         : <button type="button" className="whdr-clock" aria-label={fresh ? t('Start workout') : paused ? t('Resume workout') : t('Pause workout')}
           onClick={paused ? resumeSession : pauseSession}><Icon name={paused ? 'play' : 'pause'} /><Elapsed start={A.start} pausedAt={A.pausedAt} /></button>} · {t('{0} sets', done + '/' + total)}{paused && !fresh ? ' · ' + t('Paused') : ''}</div></div>
