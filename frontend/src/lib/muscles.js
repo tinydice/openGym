@@ -10,7 +10,7 @@
 import { isWarmupRow } from './workout-model.js'
 import { EXIDX, smOf } from './exercises.js'
 import { todayISO, weekKey, MONDAY } from './format.js'
-import { queueOf, rotationSessionsPerWeek } from './queue.js'
+import { queueOf } from './queue.js'
 import { workoutAt } from './history.js'
 
 // The muscles a map can shade, in head-to-toe order — also the order of any list
@@ -296,11 +296,9 @@ export const loadOfRoutine = (routine, exercises = {}) =>
 
 /**
  * Effective sets programmed by the live recurring week; overrides and history are not plans.
- * A floating week or rotation (S.queue, lib/queue.js) is the plan too, beside your own weekday
- * routines. A coach's queue is one week, each session once. A rotation this app manages is a loop
- * of any length run a few sessions a week (rotationSessionsPerWeek, lib/queue.js),
- * so its week is that share of the whole loop: a 16-session loop at 4 a week plans a quarter of it.
- * With no sessions a week set, the loop plans nothing.
+ * A coach's queue (S.queue, lib/queue.js) is one week, each session once, beside your own weekday
+ * routines. A rotation this app manages is an order to train in with no week to it, so it plans
+ * nothing here.
  */
 export function loadOfWeeklyPlan(S) {
   const routines = new Map((S?.routines || []).map(routine => [routine.id, routine]))
@@ -311,8 +309,7 @@ export function loadOfWeeklyPlan(S) {
     ...Object.values(S?.week || {}).flatMap(value => [].concat(value || [])).filter(id => !queued.has(id)),
     ...(q ? q.ids : []),
   ]
-  const perWeek = rotationSessionsPerWeek(S)
-  const share = !q?.rotationId ? 1 : !perWeek ? 0 : Math.min(1, perWeek / q.ids.length)
+  const share = q?.rotationId ? 0 : 1
   const weekdayCount = ids.length - (q ? q.ids.length : 0)
   const load = {}
   ids.forEach((id, i) => {

@@ -9,7 +9,7 @@ import {
   planHasRoutines, exportPlanFile, printWholePlan, importPlanFile,
 } from '../sheets.jsx'
 import Icon from '../components/Icon.jsx'
-import { Button, Row, Section, Segmented, SelectRow } from '../components/ui.jsx'
+import { Button, Row, Section, Segmented } from '../components/ui.jsx'
 import SwipeRow from '../components/SwipeRow.jsx'
 import { copyRoutine, deleteRoutine, restoreRoutine, routineSnapshot } from '../lib/routines.js'
 import { workoutControls } from '../lib/workout-controls.js'
@@ -360,14 +360,6 @@ function Schedule({ S, update, nav, mode }) {
         {!liveQ && !recovery && seq.length > 0 && <Button size="sm" variant="tinted" icon="play" aria-label={t('Start the loop')}
           onClick={() => update(s => startPass(s))}>{t('Start the loop')}</Button>}
       </div>
-      {/* How many of the loop's sessions a week holds: the streak card's target and the plan side
-          of Muscle balance. Not set by default, and then neither counts the loop as planned. */}
-      {seq.length > 0 && !external && <Section className="plan-perweek">
-        <SelectRow icon="calendar" iconTint="var(--orange)" title={t('Sessions per week')} sheetTitle={t('Sessions per week')}
-          value={S.rotationPerWeek ?? 0}
-          options={[{ value: 0, label: t('Not set') }, ...[1, 2, 3, 4, 5, 6, 7].map(n => ({ value: n, label: String(n) }))]}
-          onChange={v => update(s => { s.rotationPerWeek = v > 0 ? v : null })} />
-      </Section>}
       {/* The weekday routines ride along beside a loop (effectiveRoutineIds, history.js) and feed
           the same tally (weekTally, queue.js), so the days that still add one stay in sight; a
           day whose only routines are in the loop already adds nothing and is left out. */}
