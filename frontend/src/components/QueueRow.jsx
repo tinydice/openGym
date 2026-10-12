@@ -3,6 +3,7 @@ import { effectiveRoutineIds } from '../lib/history.js'
 import { fmtDate } from '../lib/format.js'
 import { t } from '../lib/i18n.js'
 import Icon from './Icon.jsx'
+import { isNotStarted } from '../lib/session-pause.js'
 
 // Home's progress row for a coach week (S.queue) — it stands in for the seven weekday dots
 // while a planner-written queue runs the week, because its sessions have no weekday: they are done in
@@ -13,9 +14,23 @@ import Icon from './Icon.jsx'
 // Reads through queueView so the words here and the today row (effectiveRoutineIds →
 // queueNext) can never disagree about which is next.
 export default function QueueRow({ S, today, onStart, managed }) {
-  const v = queueView(S, today)
-  if (!v) return null
-  const word = { done: t('Done'), next: t('Up next'), later: t('Later'), skipped: t('Skipped') }
+  const v0 = queueView(S, today)
+  if (!v0) return null
+  // A session open right now is the loop's current one: its chip says so (in the plain grey state
+  // word, not lit), and nothing
+  // else reads "Up next" until it is finished. Found by the slot it was picked from, else by its
+  // routine — the up-next session when that is the one, otherwise the first open slot of it.
+  const A = S.active && !S.active.editingWorkoutId && !S.active.backfill ? S.active : null
+  const open = i => i.state !== 'done' && i.state !== 'skipped'
+  const upNext = v0.items.findIndex(i => i.state === 'next')
+  const inA = i => (A?.routineIds || []).includes(i.id)
+  const activeIdx = !A ? -1
+    : Number.isInteger(A.slot) && v0.items[A.slot] && open(v0.items[A.slot]) && inA(v0.items[A.slot]) ? A.slot
+    : upNext >= 0 && inA(v0.items[upNext]) ? upNext
+    : v0.items.findIndex(i => open(i) && inA(i))
+  const v = activeIdx < 0 ? v0 : { ...v0, items: v0.items.map((i, n) => (n === activeIdx ? { ...i, state: 'active' } : i.state === 'next' ? { ...i, state: 'later' } : i)) }
+  const word = { done: t('Done'), next: t('Up next'), later: t('Later'), skipped: t('Skipped'), active: isNotStarted(A) ? t('Open') : t('In progress') }
+  const current = activeIdx >= 0 ? v.items[activeIdx] : null
   const next = v.items.find(i => i.state === 'next')
   const doneCount = v.items.filter(i => i.state === 'done').length
   // With every remaining session pinned to its own day nothing floats, so there is no 'next'
@@ -26,7 +41,8 @@ export default function QueueRow({ S, today, onStart, managed }) {
   const shownToday = !!next && effectiveRoutineIds(S, today, today).includes(next.id)
   // A pass this app manages refills itself (lib/rotation.js) — "ask the coach" and naming a
   // whole week are a planner's copy, wrong for a pass with no coach and no week shape at all.
-  const status = v.complete ? (managed ? t('Round complete') : t('Week complete, ask the coach'))
+  const status = current ? (isNotStarted(A) ? t('Open: {0}', current.name) : t('In progress: {0}', current.name))
+    : v.complete ? (managed ? t('Round complete') : t('Week complete, ask the coach'))
     : v.waiting ? (managed ? t('Next round starts {0}.', fmtDate(v.startsOn, true)) : t('Next week starts {0}', fmtDate(v.startsOn, true)))
     : shownToday ? t('Next: {0}, today', next.name)
     : next ? t('Next: {0}', next.name)

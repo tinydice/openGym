@@ -213,6 +213,15 @@ describe('Home — coach week progress row', () => {
     expect(host.querySelectorAll('.queue .row .small')[1].textContent).toBe('1 of 3 done this round.')
   })
 
+  it('a session in progress from the loop reads In progress on its chip, and nothing is lit as up next', () => {
+    setS({ active: { id: 'a', name: 'US W1 D2', routineIds: ['d2'], slot: 1, start: Date.now(), cur: 0, entries: [] } })
+    mount()
+    expect(chipTexts()[1]).toContain('In progress')
+    expect(chips().some(c => c.className.includes('on'))).toBe(false)
+    expect(chipTexts()[0]).toContain('Later')
+    expect(status()).toBe('In progress: US W1 D2')
+  })
+
   it('without a queue the weekday dots are back', () => {
     setS({ queue: null })
     mount()
