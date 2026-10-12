@@ -40,7 +40,7 @@ const setS = (over = {}) => useStore.setState(s => ({
   user: null,
 }))
 const mount = () => act(() => root.render(<Home />))
-const door = () => [...host.querySelectorAll('button')].find(b => b.textContent.includes('Choose a different workout'))
+const door = () => [...host.querySelectorAll('button, [role="button"]')].find(b => b.textContent.includes('Choose a different workout') && !b.classList.contains('today-row'))
 
 describe('Home — the way to the Start screen when a plan already owns today', () => {
   it('offers the door on a planned day, where the Start button would start the plan', () => {

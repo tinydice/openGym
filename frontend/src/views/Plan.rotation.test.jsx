@@ -335,14 +335,8 @@ describe('Plan — someone else’s queue, and a broken one', () => {
 })
 
 describe('Plan — Schedule extras', () => {
-  it('links to the weekly muscle volume in Stats', () => {
+  it('has no link to muscle volume: that lives in Stats → Muscle balance', () => {
     mount()
-    click(byLabel('Weekly muscle volume') || [...host.querySelectorAll('.plan-link button')][0])
-    expect(mocks.nav).toHaveBeenCalledWith('/stats?focus=weekly-volume')
-  })
-
-  it('has no volume link before there is a routine (Stats has no card to show then)', () => {
-    mount({ routines: [], week: {} })
     expect(host.querySelector('.plan-link')).toBe(null)
   })
 

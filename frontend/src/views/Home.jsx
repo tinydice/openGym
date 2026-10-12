@@ -146,29 +146,19 @@ export default function Home() {
           : routine ? <span className="tag acc">{t('Start')}</span>
           : <Icon name="plus" className="chev" />}
       </div>
-      {/* The row above starts today's plan in one tap, and so does the Start button in the tab
-          bar — which is the whole problem when you want something else. Both jump straight into
-          the planned session whenever there is one, so the Start screen (a freestyle session,
-          and your other routines) is only reachable on a day with nothing planned. The one other
-          way in, "Choose a different workout" on the weigh-in sheet, does not exist when the
-          weigh-in is switched off. This is that door, and it starts nothing on its own. */}
-      {!S.active && <div style={{ display: 'flex', justifyContent: 'center', marginTop: 4 }}>
-        <Button size="sm" variant="ghost" className="dim" icon="swap" onClick={() => nav('/workout')}>
-          {t('Choose a different workout')}
-        </Button>
-      </div>}
     </div>
 
-    {/* Jump to the gym check-in cards (QR membership codes). Shown here as a quick tap on
-        arrival at the gym; folds away per user via the "Gym check-in" switch in Settings. */}
-    {S.checkIn !== false && (
-      <div className="card tappable" style={{ cursor: 'pointer' }} {...tappable(() => nav('/checkin'))}>
+    {/* The today row and the tab bar's play both go to the planned session, so the Start screen
+        (another routine, or a freestyle session) needs a door of its own. It opens that screen and
+        starts nothing. Gone while a session is open: that one comes first. */}
+    {!S.active && (
+      <div className="card tappable" style={{ cursor: 'pointer' }} {...tappable(() => nav('/workout'))}>
         <div className="row between">
           <div className="row" style={{ gap: 9 }}>
-            <span className="lrow-i" style={{ background: 'var(--blue)' }}><Icon name="qr" /></span>
+            <span className="lrow-i" style={{ background: 'var(--indigo)' }}><Icon name="swap" /></span>
             <div>
-              <div className="lbl2">{t('At the gym')}</div>
-              <div className="ttl">{t('Check in')}</div>
+              <div className="lbl2">{t('Something else')}</div>
+              <div className="ttl">{t('Choose a different workout')}</div>
             </div>
           </div>
           <Icon name="chevronRight" className="chev" />
