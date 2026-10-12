@@ -300,6 +300,7 @@ export const loadOfRoutine = (routine, exercises = {}) =>
  * routines. A coach's queue is one week, each session once. A rotation this app manages is a loop
  * of any length run a few sessions a week (rotationSessionsPerWeek, lib/queue.js),
  * so its week is that share of the whole loop: a 16-session loop at 4 a week plans a quarter of it.
+ * With no sessions a week set, the loop plans nothing.
  */
 export function loadOfWeeklyPlan(S) {
   const routines = new Map((S?.routines || []).map(routine => [routine.id, routine]))
@@ -311,13 +312,14 @@ export function loadOfWeeklyPlan(S) {
     ...(q ? q.ids : []),
   ]
   const perWeek = rotationSessionsPerWeek(S)
-  const share = q && q.rotationId && q.ids.length > perWeek ? perWeek / q.ids.length : 1
+  const share = !q?.rotationId ? 1 : !perWeek ? 0 : Math.min(1, perWeek / q.ids.length)
   const weekdayCount = ids.length - (q ? q.ids.length : 0)
   const load = {}
   ids.forEach((id, i) => {
     const routine = routines.get(id)
     if (!routine) return
     const f = i < weekdayCount ? 1 : share
+    if (!f) return
     for (const [slug, sets] of Object.entries(loadOfRoutine(routine, exercises))) {
       load[slug] = (load[slug] || 0) + sets * f
     }

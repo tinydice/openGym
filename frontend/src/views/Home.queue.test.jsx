@@ -218,10 +218,25 @@ describe('Home — coach week progress row', () => {
       queue: queue({ rotationId: 'r1' }),
       rotation: { id: 'r1', sequence: ['d1', 'd2', 'd3'], label: 'US W1' },
       week: { [new Date().getDay()]: ['own'] }, workouts: [logged('d1'), core],
+      // a managed loop has a weekly target only once Plan sets its sessions a week
+      rotationPerWeek: 3,
     })
     mount()
     expect(card()).toMatch(/^2 \/ 4 this week · 2 workouts total$/)
     expect(host.querySelectorAll('.queue .row .small')[1].textContent).toBe('1 of 3 done this round.')
+  })
+
+  it('a managed loop with no sessions a week set has no target: just the count', () => {
+    const now = Date.now()
+    const core = { id: 'w-own', d: todayISO(), start: now - 3600000, end: now, routineIds: ['own'], routineId: 'own', name: 'Core', entries: [] }
+    setS({
+      queue: queue({ rotationId: 'r1' }),
+      rotation: { id: 'r1', sequence: ['d1', 'd2', 'd3'], label: 'US W1' },
+      week: { [new Date().getDay()]: ['own'] }, workouts: [logged('d1'), core],
+      rotationPerWeek: null,
+    })
+    mount()
+    expect(card()).toMatch(/^2 this week · 2 workouts total$/)
   })
 
   it('without a queue the weekday dots are back', () => {

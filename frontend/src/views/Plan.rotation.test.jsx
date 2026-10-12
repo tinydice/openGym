@@ -335,6 +335,13 @@ describe('Plan — someone else’s queue, and a broken one', () => {
 })
 
 describe('Plan — Schedule extras', () => {
+  it('sets the sessions a week a loop runs at, not set by default', () => {
+    mount({ queue: live({ rotationId: 'r1' }), rotation: saved })
+    const row = host.querySelector('.plan-perweek')
+    expect(row.textContent).toContain('Sessions per week')
+    expect(row.textContent).toContain('Not set')
+  })
+
   it('has no link to muscle volume: that lives in Stats → Muscle balance', () => {
     mount()
     expect(host.querySelector('.plan-link')).toBe(null)

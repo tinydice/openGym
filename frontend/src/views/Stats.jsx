@@ -160,6 +160,8 @@ function MuscleBalance({ S }) {
   const on = !weekly && hard && rated
   const load = loadOfWorkouts(inWin, on ? isHardSet : null)
   const planned = weekly && weekOffset === 0 ? loadOfWeeklyPlan(S) : {}
+  // Done against planned only when something is planned; otherwise the week is sets done alone.
+  const comparing = weekOffset === 0 && Object.keys(planned).length > 0
   const comparisonMuscles = MUSCLES
     .filter(muscle => (planned[muscle] || 0) > 0 || (load[muscle] || 0) > 0)
     .sort((a, b) => (load[b] || 0) - (load[a] || 0) || (planned[b] || 0) - (planned[a] || 0) || MUSCLES.indexOf(a) - MUSCLES.indexOf(b))
@@ -241,9 +243,9 @@ function MuscleBalance({ S }) {
         </div>
         <BodyMap className="tappable" load={load} body={S.body} selected={sel} onMuscle={toggleSel} />
         <BodyMapLegend />
-        {weekOffset === 0 && comparisonRows.length > 0 && <div className="muted small" style={{ margin: '10px 0 2px' }}>
+        {comparing && comparisonRows.length > 0 && <div className="muted small" style={{ margin: '10px 0 2px' }}>
           {t('Sets done this week / planned per week')}</div>}
-        {weekOffset === 0
+        {comparing
           ? comparisonRows.length ? <>{comparisonRows}{weeklyToggle(comparisonMuscles.length)}{completionSummary}</> : <div className="muted small">{t('No workouts in this period yet.')}</div>
           : inWin.length ? completedRows : <div className="muted small">{t('No workouts in this period yet.')}</div>}
       </div> : inWin.length ? <>

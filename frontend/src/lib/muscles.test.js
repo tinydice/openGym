@@ -208,12 +208,13 @@ describe('planned weekly muscle volume', () => {
   })
 
   it('plans an in-app rotation by the share of the loop a week holds', () => {
-    // a loop of 8 'push' sessions at the default 4 a week: half the loop is one week's plan
     const loop = { ...state, week: {}, queue: { ids: Array(8).fill('push'), since: 0, startsOn: '2026-08-17', rotationId: 'r' } }
     const near = (load, want) => { expect(Object.keys(load).sort()).toEqual(Object.keys(want).sort()); for (const k in want) expect(load[k]).toBeCloseTo(want[k]) }
-    near(loadOfWeeklyPlan(loop), { chest: 8, triceps: 3.2 })
-    // the rotation can say how many sessions a week it runs
-    near(loadOfWeeklyPlan({ ...loop, rotation: { id: 'r', sequence: [], perWeek: 2 } }), { chest: 4, triceps: 1.6 })
+    // no sessions a week set: the loop plans nothing
+    expect(loadOfWeeklyPlan(loop)).toEqual({})
+    // 4 a week out of a loop of 8: half the loop is one week's plan
+    near(loadOfWeeklyPlan({ ...loop, rotationPerWeek: 4 }), { chest: 8, triceps: 3.2 })
+    near(loadOfWeeklyPlan({ ...loop, rotationPerWeek: 2 }), { chest: 4, triceps: 1.6 })
     // a coach's queue (no rotationId) is a week as it stands
     near(loadOfWeeklyPlan({ ...loop, queue: { ...loop.queue, rotationId: undefined } }), { chest: 16, triceps: 6.4 })
   })
