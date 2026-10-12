@@ -16,8 +16,8 @@ import { isNotStarted } from '../lib/session-pause.js'
 export default function QueueRow({ S, today, onStart, managed }) {
   const v0 = queueView(S, today)
   if (!v0) return null
-  // A session open right now is the loop's current one: its chip says so (in the plain grey state
-  // word, not lit), and nothing
+  // A session open right now is the loop's current one: its chip says so, lit orange like the
+  // tab bar's button once it has started (a preview just opened stays plain), and nothing
   // else reads "Up next" until it is finished. Found by the slot it was picked from, else by its
   // routine — the up-next session when that is the one, otherwise the first open slot of it.
   const A = S.active && !S.active.editingWorkoutId && !S.active.backfill ? S.active : null
@@ -61,7 +61,7 @@ export default function QueueRow({ S, today, onStart, managed }) {
     {/* Two columns read top to bottom, left column first: the next session is the one below,
         never the one beside it. */}
     <div className="chips queue-grid" style={{ gridTemplateRows: `repeat(${Math.ceil(v.items.length / 2)}, auto)` }}>
-      {v.items.map((i, n) => <button key={n} className={'chip' + (i.state === 'next' ? ' on' : '')}
+      {v.items.map((i, n) => <button key={n} className={'chip' + (i.state === 'next' ? ' on' : '') + (i.state === 'active' && !isNotStarted(A) ? ' on live' : '')}
         disabled={i.state === 'done'} onClick={() => onStart(i.id, n)}
         style={{ display: 'inline-flex', alignItems: 'center', gap: 5, opacity: i.state === 'done' ? 0.55 : i.state === 'skipped' ? 0.7 : undefined }}>
         {i.state === 'done' && <Icon name="check" />}<span className="qname">{i.name}</span><span className={'dim' + (i.state === 'pinned' ? '' : ' qstate')}>{i.state === 'pinned' ? fmtDate(i.on, true) : word[i.state]}</span>

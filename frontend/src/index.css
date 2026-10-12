@@ -612,6 +612,9 @@ h4.sec{
 .chip.on{background:var(--acc);color:var(--on-acc);font-weight:500}
 .chip.on .dim{color:color-mix(in srgb,var(--on-acc) 62%,transparent)}
 .chip .qstate{text-transform:none}
+/* the rotation session in progress: lit in the running-workout orange, as the tab bar's button is */
+.chip.on.live{background:var(--orange);color:#000}
+.chip.on.live .dim{color:color-mix(in srgb,#000 62%,transparent)}
 /* Home's rotation: two columns filled down, not a wrapping row. A plain block of buttons, so the
    page scrolls through it like anything else. */
 .chips.queue-grid{display:grid;grid-template-columns:1fr 1fr;grid-auto-flow:column;gap:7px;overflow:visible;touch-action:auto}

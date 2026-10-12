@@ -217,7 +217,9 @@ describe('Home — coach week progress row', () => {
     setS({ active: { id: 'a', name: 'US W1 D2', routineIds: ['d2'], slot: 1, start: Date.now(), cur: 0, entries: [] } })
     mount()
     expect(chipTexts()[1]).toContain('In progress')
-    expect(chips().some(c => c.className.includes('on'))).toBe(false)
+    // the session in progress is the one lit, in orange; nothing else is
+    expect(chips()[1].className).toContain('on live')
+    expect(chips().filter(c => c.className.includes('on')).length).toBe(1)
     expect(chipTexts()[0]).toContain('Later')
     expect(status()).toBe('In progress: US W1 D2')
   })
