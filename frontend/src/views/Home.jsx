@@ -155,10 +155,10 @@ export default function Home() {
       <div className="card tappable" style={{ cursor: 'pointer' }} {...tappable(() => nav('/workout'))}>
         <div className="row between">
           <div className="row" style={{ gap: 9 }}>
-            <span className="lrow-i" style={{ background: 'var(--surface-3)' }}><Icon name="swap" /></span>
+            <span className="lrow-i" style={{ background: 'var(--acc)' }}><Icon name="swap" /></span>
             <div>
               <div className="lbl2">{t('Something else')}</div>
-              <div className="ttl">{t('Choose a different workout')}</div>
+              <div className="ttl" style={{ color: 'var(--acc)' }}>{t('Choose a different workout')}</div>
             </div>
           </div>
           <Icon name="chevronRight" className="chev" />
