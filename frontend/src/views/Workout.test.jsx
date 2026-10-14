@@ -3347,6 +3347,15 @@ describe('the workout screen chrome (v1.3.11)', () => {
     expect(mocks.S.active).not.toBeNull()
   })
 
+  it('‹ out of an unstarted session opened from the rotation picks that slot as up next', async () => {
+    await mount([exercise('plain-bench', [false])], 0, { active: { pausedAt: Date.now(), notStarted: true, slot: 1 } })
+    mocks.S.routines = [{ id: 'ra', name: 'A', ex: [{ id: 'plain-bench' }] }, { id: 'rb', name: 'B', ex: [{ id: 'plain-bench' }] }]
+    mocks.S.queue = { ids: ['ra', 'rb'], since: 5, startsOn: '2026-01-01', rotationId: 'r' }
+    await click(container.querySelector('button[aria-label="Minimize"]'))
+    expect(mocks.S.active).toBeNull()
+    expect(mocks.S.queuePick).toEqual({ slot: 1, id: 'rb', since: 5 })
+  })
+
   it('has a labelled Finish pill and a ⌄ that leaves the screen with the session still running', async () => {
     await mount([exercise('plain-bench', [false])])
     const pill = container.querySelector('.whdr-finish')

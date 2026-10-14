@@ -65,7 +65,7 @@ import { weeklyWeights } from './lib/bodyweight.js'
 import { workoutText } from './lib/workout-text.js'
 import { workoutCardModel, layoutWorkoutCard, drawWorkoutCard, viewAspect, CARD_FONT } from './lib/workout-card.js'
 import { copyText } from './lib/clipboard.js'
-import { queueRemaining, pinState } from './lib/queue.js'
+import { queueRemaining, pinState, pickedSlot, queueOf } from './lib/queue.js'
 import { DAY_NOTE_TAGS, DAY_NOTE_LABEL, DAY_NOTE_ICON, dayNoteOf, dayNoteLine, canNoteDay, withDayNote } from './lib/day-notes.js'
 
 const S = () => useStore.getState().S
@@ -2780,6 +2780,10 @@ export function startFlow(routineIds, opts) {
 export function beginWorkout(routineIds, bw, opts) {
   const st = S()
   const { entries, routineIds: rids, routines } = buildCombinedEntries(st, routineIds)
+  // Started from Today or the play button with no slot of its own: the session picked to go next,
+  // when this is its routine, is the slot it fills.
+  const pick = pickedSlot(st)
+  if (!Number.isInteger(opts?.slot) && pick != null && rids.includes(queueOf(st).ids[pick])) opts = { ...opts, slot: pick }
   update(s => {
     s.active = {
       id: uid(), d: todayISO(), ...clockFields(opts?.started === true),

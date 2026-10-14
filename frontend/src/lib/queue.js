@@ -148,6 +148,17 @@ export function queueNext(S, iso, today) {
   return nextOn(S, queueRemaining(S), on, today)
 }
 
+/**
+ * The session picked to go next: tapped on Home's rotation row and backed out of without starting
+ * (S.queuePick = { slot, id, since }). Good only for the pass it was picked in, while that slot is
+ * still to do; the slot index, or null.
+ */
+export function pickedSlot(S) {
+  const q = queueOf(S), p = S?.queuePick
+  if (!q || !p || !Number.isInteger(p.slot) || p.since !== q.since || q.ids[p.slot] !== p.id) return null
+  return slotState(S, q).done[p.slot] ? null : p.slot
+}
+
 /** Active pins, `[{ iso, id }]`: dayPlan entries naming a session still to do, dated today or later. */
 const activePins = (S, remaining, today) => Object.entries(S.dayPlan || {})
   .filter(([iso, id]) => iso >= today && remaining.includes(id))
@@ -158,6 +169,12 @@ const nextOn = (S, remaining, on, today) => {
   const pins = activePins(S, remaining, today)
   const here = pins.find(p => p.iso === on)
   if (here) return here.id
+  // A session picked to go next wins over the loop's own order, unless it is pinned to another day.
+  const pick = pickedSlot(S)
+  if (pick != null) {
+    const id = queueOf(S).ids[pick]
+    if (!pins.some(p => p.id === id && p.iso !== on)) return id
+  }
   return remaining.find(id => !pins.some(p => p.id === id)) ?? null
 }
 
@@ -202,17 +219,19 @@ export function queueView(S, today) {
   // A routine in several slots: only its first open slot is 'next' or 'pinned'. Slots before the
   // head that were never done are 'skipped' — the loop moved past them.
   const { done, head } = slotState(S, q)
+  const pick = pickedSlot(S)
   const firstOpen = {}
   q.ids.forEach((id, i) => { if (!done[i] && i >= head && firstOpen[id] == null) firstOpen[id] = i })
   return {
     label: q.label || '',
     items: q.ids.map((id, i) => {
       const lead = !done[i] && firstOpen[id] === i
-      const isNext = lead && id === next
+      // A picked session is 'next' in its own slot, wherever that sits in the loop.
+      const isNext = pick != null && q.ids[pick] === next ? i === pick : lead && id === next
       const pin = lead && !isNext && pins.find(p => p.id === id && p.iso !== on)
       return {
         id, name: nameOf(id),
-        state: done[i] ? 'done' : i < head ? 'skipped' : isNext ? 'next' : pin ? 'pinned' : 'later',
+        state: done[i] ? 'done' : isNext ? 'next' : i < head ? 'skipped' : pin ? 'pinned' : 'later',
         ...(pin ? { on: pin.iso } : {}),
       }
     }),

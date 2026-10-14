@@ -13,7 +13,7 @@ import { fmtNum, fmtPlate, exerciseNameText, fmtDate, fmtDaysAgo, todayISO, exCo
 import { speedUnitOf, toSpeed, fromSpeed } from '../lib/speed.js'
 import { clampIncline, hasIncline, inclineFits, inclineFrom, INCLINE_STEP } from '../lib/incline.js'
 import { beep, vibrate, unlock } from '../lib/sound.js'
-import { pinState, slotFor } from '../lib/queue.js'
+import { pinState, slotFor, queueOf } from '../lib/queue.js'
 import { t, tn, exerciseNameFor, exerciseNameClass } from '../lib/i18n.js'
 import { api, beacon } from '../lib/api.js'
 import { pyramidRestFor, maxRecordAt, isPyramid, pyramidLabel } from '../lib/pyramid.js'
@@ -1430,10 +1430,19 @@ function ActiveWorkout() {
   // Ending the session without saving it. The ⋯ menu's last item since the header's ✕ became the
   // ⌄ that only leaves the screen (v1.3.11).
   // ‹ out of a session never started, with nothing ticked, was only a look at it: it goes away
-  // rather than sitting on Home as an open workout. Anything logged keeps it.
+  // rather than sitting on Home as an open workout, and a session from the rotation stays picked
+  // as up next. Anything logged keeps it.
   const leaveWorkout = () => {
     const untouched = !A.entries.some(e => (e.sets || []).some(hasCompletedWork))
-    if (fresh && untouched) { update(s => { s.active = null }); stopRest(); stopWork() }
+    if (fresh && untouched) {
+      update(s => {
+        // Opened from the rotation and backed out of: that session is picked to go next.
+        const q = queueOf(s), slot = s.active?.slot
+        if (q && Number.isInteger(slot) && q.ids[slot]) s.queuePick = { slot, id: q.ids[slot], since: q.since }
+        s.active = null
+      })
+      stopRest(); stopWork()
+    }
     nav('/home')
   }
   const discardWorkout = () => confirmSheet({

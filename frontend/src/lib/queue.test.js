@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { queueDone, queueRemaining, queueNext, queueView, weekTally, pinState, queueOf, slotFor } from './queue.js'
+import { queueDone, queueRemaining, queueNext, queueView, weekTally, pinState, queueOf, slotFor, pickedSlot } from './queue.js'
 
 // The DONE RULE is shared with the api's reminder copy (and any planner writing S.queue); these
 // cases are the ones every copy must agree on. Dates are plain strings so nothing here reads the clock.
@@ -425,5 +425,25 @@ describe('the streak card with an in-app rotation', () => {
     expect(weekTally(loop(), TODAY)).toEqual({ done: 0, planned: 0 })
     const ws = [w({ id: 'a', routineIds: ['d1'], start: at(1) }), w({ id: 'b', routineIds: ['own'], start: at(2), d: '2026-09-09' })]
     expect(weekTally(loop({ workouts: ws }), TODAY)).toEqual({ done: 2, planned: 0 })
+  })
+})
+
+describe('a session picked to go next', () => {
+  const states = S_ => queueView(S_, TODAY).items.map(i => i.state)
+  const pick = slot => ({ slot, id: ['d1', 'd2', 'd3'][slot], since: SINCE })
+
+  it('becomes up next in its own slot, without anything being started or skipped', () => {
+    const S_ = S({ queuePick: pick(2) })
+    expect(pickedSlot(S_)).toBe(2)
+    expect(states(S_)).toEqual(['later', 'later', 'next'])
+    expect(queueNext(S_, TODAY, TODAY)).toBe('d3')
+  })
+
+  it('lapses once its slot is done, or when the pass is a different one', () => {
+    const done = S({ queuePick: pick(2), workouts: [w({ routineIds: ['d3'], start: SINCE + 3600000, slot: 2 })] })
+    expect(pickedSlot(done)).toBeNull()
+    expect(states(done)).toEqual(['skipped', 'skipped', 'done'])
+    expect(pickedSlot(S({ queuePick: { ...pick(1), since: SINCE - 1 } }))).toBeNull()
+    expect(pickedSlot(S({ queuePick: { slot: 1, id: 'd3', since: SINCE } }))).toBeNull()
   })
 })
