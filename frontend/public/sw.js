@@ -250,7 +250,14 @@ self.addEventListener('pushsubscriptionchange', e => {
 const API = (() => { try { return new URL('api/', location.href).pathname } catch { return '/api/' } })()
 
 // How long a request for the app itself waits on the network before a cached copy answers it.
-const NET_WAIT_MS = 3000
+// Kept short: on a phone whose VPN (Tailscale) is still waking up, requests hang rather than fail,
+// and every second here is a second of black screen at launch.
+const NET_WAIT_MS = 1500
+
+// The build's hashed files (assets/name-<hash>.js|css) never change under their name: a new build
+// names them anew and the fresh index.html points at the new names. So they are answered from the
+// cache first and only fetched when missing, instead of each one waiting on the network in turn.
+const isHashedAsset = path => /\/assets\/[^/]+-[A-Za-z0-9_-]{6,}\.(js|css)$/.test(path)
 
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url)
@@ -259,6 +266,13 @@ self.addEventListener('fetch', e => {
 
   if (isMediaPath(url.pathname)) {
     e.respondWith(media(e))
+    return
+  }
+  if (isHashedAsset(url.pathname)) {
+    e.respondWith(caches.match(e.request, { ignoreSearch: true }).then(hit => hit || fetch(e.request).then(res => {
+      if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {}) }
+      return res
+    })))
     return
   }
   // Network first; the copy for the cache is cloned before the response is handed to the page —

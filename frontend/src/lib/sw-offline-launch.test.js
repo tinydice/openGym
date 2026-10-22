@@ -118,19 +118,28 @@ function lateAnswer() {
 }
 
 describe('service worker offline cold-launch (issue #274)', () => {
-  it('a navigation the network never answers is answered from the cached shell after 3 s, not before', async () => {
+  it('a navigation the network never answers is answered from the cached shell after 1.5 s, not before', async () => {
     const { listeners, cache, clock } = loadServiceWorker({ fetchImpl: deadRadio })
     await cache.put('index.html', new Response('cached-shell'))
 
     const e = makeFetchEvent('https://gym.example/')
     listeners.fetch(e)
-    await clock.advance(2999)
+    await clock.advance(1499)
     const early = await Promise.race([e.response.then(() => 'settled'), settle().then(() => 'still-pending')])
     expect(early).toBe('still-pending')
 
     await clock.advance(1)
     const res = await e.response
     expect(await res.text()).toBe('cached-shell')
+  })
+
+  it('a hashed bundle file in the cache is answered at once, without waiting on the network', async () => {
+    const { listeners, cache } = loadServiceWorker({ fetchImpl: deadRadio })
+    await cache.put('https://gym.example/assets/index-DUe65u-a.js', new Response('cached-bundle'))
+    const e = makeFetchEvent('https://gym.example/assets/index-DUe65u-a.js', 'cors')
+    listeners.fetch(e)
+    const res = await Promise.race([e.response, settle().then(() => null)])
+    expect(res && await res.text()).toBe('cached-bundle')
   })
 
   it('a script whose body is still arriving after 3 s reaches the page whole, and is cached', async () => {
