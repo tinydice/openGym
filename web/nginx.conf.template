@@ -133,7 +133,7 @@ server {
     # The build's hashed bundle files never change under their name (a new build names them
     # anew), so the browser may keep them for good instead of re-checking each one per launch.
     # Listed before the shell rule below: regex locations are tried in order.
-    location ~* /assets/[^/]+-[A-Za-z0-9_-]{6,}\.(js|css)$ {
+    location ~* "/assets/[^/]+-[A-Za-z0-9_-]{6,}\.(js|css)$" {
         rewrite ^\Q${BASE_PATH}\E/(.*)$ /$1 break;
         add_header Cache-Control "public, max-age=31536000, immutable";
         add_header X-Frame-Options "DENY" always;
