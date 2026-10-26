@@ -25,3 +25,18 @@ export function lifetimeTotals(S) {
   }
   return { lifted, runKm }
 }
+
+// The two numbers share a phone-width card half, so a big one changes unit rather than run off:
+// from 100,000 lb it is tons (2,000 lb), from 100,000 kg metric tonnes, from 10,000 of a distance
+// unit it is thousands. `value` is already rounded for display; `size` steps the text down for
+// the few lengths that still need it.
+export function liftedDisplay(amount, unit) {
+  if (unit === 'lb' && amount >= 100000) return { value: Math.round(amount / 2000 * 10) / 10, unit: 'tons' }
+  if (unit !== 'lb' && amount >= 100000) return { value: Math.round(amount / 1000 * 10) / 10, unit: 't' }
+  return { value: Math.round(amount), unit }
+}
+export function distanceDisplay(amount, unit) {
+  if (amount >= 10000) return { value: Math.round(amount / 1000 * 10) / 10, unit: 'k ' + unit }
+  return { value: Math.round(amount * 10) / 10, unit }
+}
+export const fitSize = text => (text.length > 9 ? 20 : text.length > 7 ? 24 : 30)

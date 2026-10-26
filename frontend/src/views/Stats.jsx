@@ -9,7 +9,7 @@ import { t, exerciseNameFor, exerciseNameClass, getLang } from '../lib/i18n.js'
 import { bwSheet, goalSheet, calendarSheet, dayOverrideSheet, workoutDetailSheet, exerciseHistorySheet, WorkoutRow, bwDeltaColor, weighInsSheet } from '../sheets.jsx'
 import LineChart from '../components/LineChart.jsx'
 import Heatmap from '../components/Heatmap.jsx'
-import { lifetimeTotals } from '../lib/lifetime.js'
+import { lifetimeTotals, liftedDisplay, distanceDisplay, fitSize } from '../lib/lifetime.js'
 import Icon from '../components/Icon.jsx'
 import BodyMap, { BodyMapLegend } from '../components/BodyMap.jsx'
 import { loadOfWeeklyPlan, loadOfWorkouts, muscleBalanceWindow, rankOf, MUSCLES, MUSCLE_NAME, musclesOf } from '../lib/muscles.js'
@@ -548,15 +548,17 @@ export default function Stats() {
     {(() => {
       const { lifted, runKm } = lifetimeTotals(S)
       const miles = speedUnitOf(S) === 'mph'
-      const dist = miles ? runKm / KMH_PER_MPH : runKm
+      const lift = liftedDisplay(lifted, S.unit)
+      const dist = distanceDisplay(miles ? runKm / KMH_PER_MPH : runKm, miles ? 'mi' : 'km')
+      const liftText = fmtNum(lift.value), distText = fmtNum(dist.value)
       return <div className="card lifetime" data-lifetime>
         <div className="lt">
           <div className="lt-l"><Icon name="dumbbell" />{t('Lifted, all time')}</div>
-          <div className="lt-v">{fmtNum(Math.round(lifted))}<span>{S.unit}</span></div>
+          <div className="lt-v" style={{ fontSize: fitSize(liftText) }}>{liftText}<span>{lift.unit}</span></div>
         </div>
         <div className="lt">
           <div className="lt-l"><Icon name="figureRun" />{t('Run, all time')}</div>
-          <div className="lt-v">{fmtNum(Math.round(dist * 10) / 10)}<span>{miles ? 'mi' : 'km'}</span></div>
+          <div className="lt-v" style={{ fontSize: fitSize(distText) }}>{distText}<span>{dist.unit}</span></div>
         </div>
       </div>
     })()}
