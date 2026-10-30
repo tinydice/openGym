@@ -6,7 +6,7 @@ import { effectiveRoutines, effectiveRoutineIds, nextTrainingDay, lastBW, setsDo
 import { fmtNum, fmtDate, todayISO, isoOf, weekStartOf, weekKey, weekDayOffset, DAYS, DAYN } from '../lib/format.js'
 import { t, tn, dateLocale } from '../lib/i18n.js'
 import { bwSheet, goalSheet, dayOverrideSheet, calendarSheet, startFlow, starterPlanSheet, bwDeltaColor, weighInsSheet } from '../sheets.jsx'
-import LineChart from '../components/LineChart.jsx'
+import WeightChart from '../components/WeightChart.jsx'
 import Icon from '../components/Icon.jsx'
 import QueueRow from '../components/QueueRow.jsx'
 import { queueOf, queueView, pinState } from '../lib/queue.js'
@@ -93,7 +93,6 @@ export default function Home() {
   // The activity card: this calendar week's workouts. No streak and no target, just the count.
   const thisWeekKey = weekKey(todayISO(), weekStartOf(S))
   const doneThisWeek = S.workouts.filter(w => weekKey(w.d, weekStartOf(S)) === thisWeekKey).length
-  const bwPoints = S.bodyweight.slice(-30).map(b => ({ t: b.t || new Date(b.d).getTime(), y: b.w, d: b.d }))
 
   // today's session shown right under the week strip
   const onToday = () => { if (S.active) nav('/workout'); else if (todayRoutines.length) startFlow(effectiveRoutineIds(S, todayISO())); else dayOverrideSheet(todayISO()) }
@@ -194,7 +193,7 @@ export default function Home() {
             <span>{t('Goal')} {fmtNum(S.targetW)} {S.unit} · {Math.abs(S.targetW - bw.w) < 0.05 ? t('reached!') : t(S.targetW > bw.w ? '{0} to gain' : '{0} to lose', fmtNum(Math.abs(S.targetW - bw.w)) + ' ' + S.unit)}</span>
           </div>
         )}
-        <div className="chart" style={{ marginTop: 8 }}><LineChart points={bwPoints} h={130} unit={S.unit} goal={S.targetW} /></div>
+        <div style={{ marginTop: 8 }}><WeightChart bodyweight={S.bodyweight} h={130} unit={S.unit} goal={S.targetW} showLatest={false} deltaColor={bwDeltaColor} /></div>
         {/* every weigh-in, week by week with its average (Discord 'Weight') */}
         <div className="row" style={{ justifyContent: 'flex-end', marginTop: 4 }}>
           <Button size="sm" variant="ghost" trailingIcon="chevronRight" onClick={weighInsSheet}>{t('All weigh-ins')}</Button>

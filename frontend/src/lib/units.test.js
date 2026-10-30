@@ -89,6 +89,15 @@ describe('convertStateUnit', () => {
   })
 })
 
+describe('convertStateUnit: scale extras on a weigh-in', () => {
+  it('converts muscle mass with the weight and leaves the percentages alone', () => {
+    const state = { unit: 'kg', bodyweight: [{ d: '2026-01-01', w: 80, t: 1, bf: 18.5, mm: 62, bw: 55.1, vf: 9, src: 'scale' }, { d: '2026-01-02', w: 80.2, t: 2 }] }
+    const lb = convertStateUnit(state, 'lb')
+    expect(lb.bodyweight[0]).toEqual({ d: '2026-01-01', w: 176.4, t: 1, bf: 18.5, mm: 136.7, bw: 55.1, vf: 9, src: 'scale' })
+    expect(lb.bodyweight[1]).toEqual({ d: '2026-01-02', w: 176.8, t: 2 })
+  })
+})
+
 describe('convertStateUnit: bar weights', () => {
   // 0025 barbell bench press (barbell), 1344 an EZ-bar exercise, 1383 a sled (not a bar).
   const conv = (barWeights, from, to) => convertStateUnit({ unit: from, barWeights }, to).barWeights

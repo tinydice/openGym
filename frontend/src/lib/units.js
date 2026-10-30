@@ -93,7 +93,12 @@ export function convertStateUnit(S, to) {
     return out
   }
   const out = { ...S, unit: to }
-  if (Array.isArray(S.bodyweight)) out.bodyweight = S.bodyweight.map(b => ({ ...b, w: bw(b.w) }))
+  if (Array.isArray(S.bodyweight)) out.bodyweight = S.bodyweight.map(b => {
+    // Muscle mass from a scale (POST /api/weighin `extras.mm`) is a weight too; the percentages are not.
+    const o = { ...b, w: bw(b.w) }
+    if (Number.isFinite(b?.mm)) o.mm = Math.round(bw(b.mm) * 10) / 10
+    return o
+  })
   if (S.targetW != null) out.targetW = bw(S.targetW)
   if (S.exWeights) out.exWeights = Object.fromEntries(Object.entries(S.exWeights).map(([k, v]) => [k, v && typeof v === 'object' ? { ...v, w: c(v.w) } : c(v)]))
   if (S.barWeights) out.barWeights = convBarWeights(S.barWeights, from, to)

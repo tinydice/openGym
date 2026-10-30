@@ -30,6 +30,8 @@ import {
   listPasskeys, addPasskeyRecord, renamePasskeyRecord, removePasskeyRecord, passkeyRemovalRefused, MAX_PASSKEYS
 } from './passkeys-store.js';
 import { createDeviceLink, findDeviceLink, burnDeviceLink, dropDeviceLinks } from './device-link.js';
+import { createIngestToken, findIngestToken, ingestTokenInfo, dropIngestToken } from './ingest-token.js';
+import { parseWeighIn, upsertWeighIn } from './weighin.js';
 import { createMediaStore, mediaLimits, mediaConfig, MediaError, HASH_RE } from './media.js';
 import { effectiveRoutineId } from './queue.js';
 import { stampPut } from './sync-stamps.js';
@@ -146,6 +148,7 @@ db.creds = db.creds || [];
 db.subs = db.subs || [];
 db.invites = db.invites || [];
 db.deviceLinks = db.deviceLinks || [];   // unused one-time device links, hashed (device-link.js)
+db.ingestTokens = db.ingestTokens || []; // weigh-in ingest tokens, hashed, one per profile (ingest-token.js)
 const isAdmin = user => !!user && (user.admin === true || ADMIN_UIDS.includes(user.id));
 // 0600: db.json holds passkey credential material. It used to be covered by a blanket 0700 on
 // the whole directory; now that the directory stays traversable, the file carries its own mode.
@@ -1462,6 +1465,7 @@ const passwordRoutes = {
     u.sv = sessionVersion(u) + 1;
     for (const [k, v] of pairings) if (v.uid === u.id) pairings.delete(k);
     dropDeviceLinks(db, u.id);
+    dropIngestToken(db, u.id);   // a reset is for a profile that may have been taken over
     presence.delete(u.id);
     saveDb();
     audit(req, 'admin.password.reset', { user: admin, target: u });
@@ -1904,6 +1908,54 @@ function dataWritable() {
   return ok;
 }
 
+// The write sequence behind PUT /api/data and POST /api/weighin, so a write by anything other than
+// the app takes exactly the same road and an open client picks it up through its half-minute
+// revision check: stamp (sync-stamps.js), revision + 1, a new write id, the atomic write, and the
+// stat cache evicted. `cur` is the document as read just now (readStateStrict, never UNREADABLE),
+// `state` the one to store; nothing may be awaited between the read and this call. `overRead` says
+// the writer wrote over the revision it read, `stamped` that it stamps its own changes.
+// → { rev, wid } for the answer, or { error } for a document that cannot be stored.
+function commitState(uid, cur, state, { overRead = false, stamped = false } = {}) {
+  const curRev = cur?._rev || 0;
+  // The records of removals and edits only grow, and what a writer that does not stamp its own
+  // changes (an older app, an API script) changed is stamped here, so it is neither wiped nor
+  // undone by the next device that merges (sync-stamps.js).
+  // A document nested too deep to compare is the bad request the stringify below refuses too.
+  const report = {};
+  try { stampPut(cur, state, { overRead, stamped, report }); }
+  catch (e) { if (e instanceof RangeError) return { error: 'invalid state' }; throw e; }
+  state._rev = curRev + 1;          // server-owned; whatever the client sent is ignored
+  // A writer that does not stamp (an older app) takes the revision it is told for the document it
+  // sent, and only reads the profile again once the revision moves. When the server put back
+  // something it left out or set back (sync-stamps.js), the document stored is not that one: it
+  // goes in one revision further, so the writer's next check of the revision (every half minute)
+  // finds it moved and reads it, and its next push over the one it was told is a conflict to merge.
+  if (report.changed) state._rev = curRev + 2;
+  state._wids = [...(Array.isArray(cur?._wids) ? cur._wids : []), ...(cur?._wid ? [cur._wid] : [])]
+    .filter(x => typeof x === 'string').slice(-WID_KEEP);
+  state._wid = crypto.randomBytes(8).toString('hex');
+  // JSON.parse takes any nesting, JSON.stringify recurses and runs out of stack on a document
+  // nested some thousands deep. No client builds one; it is a bad request, not a server error.
+  let text;
+  try { text = JSON.stringify(state); }
+  catch (e) { if (e instanceof RangeError) return { error: 'invalid state' }; throw e; }
+  atomicWrite(stateFile(uid), text);
+  // The stat cache cannot see this write on its own: mtime granularity is 4 ms here (ext4 on
+  // this kernel — 3901 of 3999 back-to-back same-size writes shared one timestamp), and a
+  // `_rev` going from 7 to 8 does not change the file's size, so two writes inside one 4 ms
+  // tick are the same (mtimeMs, size) key. A reader that sampled between them would then serve
+  // the old revision until some later write happened to land on a different tick. This is the
+  // only writer of a state file in the tree, so evicting here is the whole fix.
+  stateCache.delete(uid);
+  // Starts (or stops) the grace clock of every stored file this write stopped (or started)
+  // referencing. Bookkeeping only: the state is already saved, so nothing here may turn a
+  // successful write into an error.
+  if (MEDIA_ON) {
+    try { MEDIA.noteState(uid, state); } catch (e) { console.error('media noteState', e); }
+  }
+  return { rev: curRev + 1, wid: state._wid };
+}
+
 const routes = {
   // 503 rather than a flag in a 200: the container healthcheck is `wget --spider`, which reads
   // the status and nothing else, and an instance that cannot write its data directory is exactly
@@ -2251,43 +2303,62 @@ const routes = {
       if (cur.resetIds && typeof cur.resetIds === 'object') body.state.resetIds = cur.resetIds;
       else delete body.state.resetIds;
     }
-    // The records of removals and edits only grow, and what a writer that does not stamp its own
-    // changes (an older app, an API script) changed is stamped here, so it is neither wiped nor
-    // undone by the next device that merges (sync-stamps.js).
-    // A document nested too deep to compare is the bad request the stringify below refuses too.
-    const report = {};
-    try { stampPut(cur, body.state, { overRead: body.baseRev != null && body.baseRev === curRev, stamped: body.stamped === true, report }); }
-    catch (e) { if (e instanceof RangeError) return json(res, 400, { error: 'invalid state' }); throw e; }
-    body.state._rev = curRev + 1;          // server-owned; whatever the client sent is ignored
-    // A writer that does not stamp (an older app) takes the revision it is told for the document it
-    // sent, and only reads the profile again once the revision moves. When the server put back
-    // something it left out or set back (sync-stamps.js), the document stored is not that one: it
-    // goes in one revision further, so the writer's next check of the revision (every half minute)
-    // finds it moved and reads it, and its next push over the one it was told is a conflict to merge.
-    if (report.changed) body.state._rev = curRev + 2;
-    body.state._wids = [...(Array.isArray(cur?._wids) ? cur._wids : []), ...(cur?._wid ? [cur._wid] : [])]
-      .filter(x => typeof x === 'string').slice(-WID_KEEP);
-    body.state._wid = crypto.randomBytes(8).toString('hex');
-    // JSON.parse takes any nesting, JSON.stringify recurses and runs out of stack on a document
-    // nested some thousands deep. No client builds one; it is a bad request, not a server error.
-    let text;
-    try { text = JSON.stringify(body.state); }
-    catch (e) { if (e instanceof RangeError) return json(res, 400, { error: 'invalid state' }); throw e; }
-    atomicWrite(stateFile(user.id), text);
-    // The stat cache cannot see this write on its own: mtime granularity is 4 ms here (ext4 on
-    // this kernel — 3901 of 3999 back-to-back same-size writes shared one timestamp), and a
-    // `_rev` going from 7 to 8 does not change the file's size, so two writes inside one 4 ms
-    // tick are the same (mtimeMs, size) key. A reader that sampled between them would then serve
-    // the old revision until some later write happened to land on a different tick. This is the
-    // only writer of a state file in the tree, so evicting here is the whole fix.
-    stateCache.delete(user.id);
-    // Starts (or stops) the grace clock of every stored file this write stopped (or started)
-    // referencing. Bookkeeping only: the state is already saved, so nothing here may turn a
-    // successful write into an error.
-    if (MEDIA_ON) {
-      try { MEDIA.noteState(user.id, body.state); } catch (e) { console.error('media noteState', e); }
-    }
-    json(res, 200, { ok: true, ts: body.state._ts || null, rev: curRev + 1, wid: body.state._wid });
+    const w = commitState(user.id, cur, body.state, { overRead: body.baseRev != null && body.baseRev === curRev, stamped: body.stamped === true });
+    if (w.error) return json(res, 400, { error: w.error });
+    json(res, 200, { ok: true, ts: body.state._ts || null, rev: w.rev, wid: w.wid });
+  },
+
+  /* ---------- weigh-ins from outside the app (an iOS Shortcut, a script) ---------- */
+  // The token is made, rotated and revoked from Settings with a signed-in session (cookie, so the
+  // CSRF check applies), shown once, and kept only as a hash (ingest-token.js). It opens
+  // POST /api/weighin and nothing else.
+  'GET /api/account/ingest-token': async (req, res) => {
+    const user = readSession(req);
+    if (!user) return notSignedIn(res);
+    json(res, 200, ingestTokenInfo(db, user.id));
+  },
+  'POST /api/account/ingest-token': async (req, res) => {
+    const user = readSession(req);
+    if (!user) return notSignedIn(res);
+    const { token, row } = createIngestToken(db, user.id);
+    saveDb();
+    audit(req, 'ingest.token.create', { user });
+    json(res, 200, { token, created: row.created });
+  },
+  'DELETE /api/account/ingest-token': async (req, res) => {
+    const user = readSession(req);
+    if (!user) return notSignedIn(res);
+    if (dropIngestToken(db, user.id)) saveDb();
+    audit(req, 'ingest.token.revoke', { user });
+    json(res, 200, { ok: true, ...ingestTokenInfo(db, user.id) });
+  },
+  // One weigh-in: { date, kg | lb, extras?: { bf, mm, bw, vf }, source? }. Authenticated by the
+  // ingest token alone (`Authorization: Bearer ogw_...`); a session is not accepted here. The write
+  // goes through commitState like PUT /api/data, so an open app sees it at its next revision check.
+  'POST /api/weighin': async (req, res) => {
+    const auth = req.headers.authorization || '';
+    const row = auth.startsWith('Bearer ') ? findIngestToken(db, auth.slice(7).trim()) : null;
+    const user = row && db.users.find(u => u.id === row.userId);
+    if (!user || user.disabled) return json(res, 401, { error: 'invalid or missing ingest token' });
+    const body = await readBody(req);
+    // Read after the body, with nothing awaited between this read and the write below.
+    const cur = readStateStrict(user.id);
+    if (cur === UNREADABLE) { console.error('state file unreadable for', user.id); return json(res, 503, { error: 'state unreadable' }); }
+    // A profile that has never synced has no document to add to, and one made here would be taken
+    // for the device's own by the first app that signs in. Open the app once first.
+    if (!cur) return json(res, 409, { error: 'no data for this profile yet; open the app and sign in on a device first' });
+    const parsed = parseWeighIn(body, cur.unit);
+    if (!parsed.ok) return json(res, 400, { error: parsed.error });
+    const next = JSON.parse(JSON.stringify(cur));
+    delete next._unstamped; delete next._prior;
+    const r = upsertWeighIn(next, parsed.entry);
+    const now = Date.now();
+    if (!row.last || now - row.last > 60000) { row.last = now; try { saveDb(); } catch (e) { console.error('db save failed', e.message); } }
+    if (!r.applied) return json(res, 200, { ok: true, applied: false, reason: r.reason, unit: cur.unit === 'lb' ? 'lb' : 'kg', rev: cur._rev || 0 });
+    const w = commitState(user.id, cur, next, { overRead: true, stamped: false });
+    if (w.error) return json(res, 400, { error: w.error });
+    audit(req, 'weighin.ingest', { user, msg: parsed.entry.d });
+    json(res, 200, { ok: true, applied: true, replaced: r.replaced, entry: { ...parsed.entry }, unit: cur.unit === 'lb' ? 'lb' : 'kg', rev: w.rev, wid: w.wid });
   },
 
   'GET /api/push/public-key': async (req, res) => json(res, 200, { key: vapid.publicKey }),
@@ -2484,6 +2555,7 @@ const routes = {
     db.creds = (db.creds || []).filter(c => c.userId !== u.id);
     db.subs = (db.subs || []).filter(x => x.userId !== u.id);
     dropDeviceLinks(db, u.id);
+    dropIngestToken(db, u.id);
     presence.delete(u.id);
     // The training history and any Coach credential of theirs, both outside db.json.
     try { fs.unlinkSync(stateFile(u.id)); } catch { /* already gone */ }

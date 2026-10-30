@@ -488,7 +488,7 @@ function Insights({ S, window: win, compact }) {
           {bw.delta > 0 ? '+' : ''}{fmtNum(bw.delta)} {S.unit}{bw.goal != null ? ` · ${t('goal')} ${fmtNum(bw.goal)}` : ''}
         </span>
       </div>
-      <div className="chart"><LineChart points={bw.points} h={compact ? 96 : 120} unit={S.unit} goal={bw.goal} axes={!compact} /></div>
+      <div className="chart"><LineChart points={bw.points} h={compact ? 96 : 120} unit={S.unit} goal={bw.goal} axes={!compact} fill={false} /></div>
     </div>}
 
     {!!ins.strength.length && <div className="ins-block">

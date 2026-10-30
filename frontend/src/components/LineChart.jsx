@@ -9,13 +9,15 @@ const W = 340   // viewBox width; the svg stretches to its container, height com
 //        more of it). Used for effort on the weight curve, where the two belong on one line:
 //        the same weight with less left in the tank is not the same session.
 //   note extra text for that point's tooltip.
-// opts: { h, unit, color, axes, goal, invert, series }
+// opts: { h, unit, color, axes, goal, invert, series, fill }
+//   fill={false} drops the soft gradient area under the line (on by default); the line, the dot
+//   and the hover are unchanged.
 //   invert flips the y axis, for a scale that counts down as it gets harder (RIR). Without it
 //   a curve of reps-in-reserve reads upside down, with the hardest sets at the floor.
 //   series draws several lines instead of one: [{ points, color }] (issue #145, one per set
 //   number). `points` then only anchors the hover — one per date, its `note` the tooltip — and
 //   the y axis spans every series.
-export default function LineChart({ points, h = 150, unit = '', color = 'var(--acc)', axes = true, goal = null, invert = false, series = null }) {
+export default function LineChart({ points, h = 150, unit = '', color = 'var(--acc)', axes = true, goal = null, invert = false, series = null, fill = true }) {
   const svgRef = useRef(null)
   const wrapRef = useRef(null)
   const tipRef = useRef(null)
@@ -127,10 +129,10 @@ export default function LineChart({ points, h = 150, unit = '', color = 'var(--a
       onMouseLeave={() => setHover(null)}
       onTouchStart={onMove} onTouchMove={onMove}>
       <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ aspectRatio: `${W}/${H}` }}>
-        <defs><linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+        {fill && <defs><linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor={color} stopOpacity=".28" />
           <stop offset="1" stopColor={color} stopOpacity="0" />
-        </linearGradient></defs>
+        </linearGradient></defs>}
         {gridlines}
         {goal != null && isFinite(goal) && <>
           <line x1={P.l} y1={Y(goal)} x2={W - P.r} y2={Y(goal)} stroke="var(--yellow)" strokeWidth="1.6" strokeDasharray="7 4" />
@@ -146,7 +148,7 @@ export default function LineChart({ points, h = 150, unit = '', color = 'var(--a
             {s.points.map((p, i) => <circle key={i} cx={X(p.t)} cy={Y(p.y)} r={sw / 2 + 1.2} fill={s.color} />)}
           </g>
         }) : <>
-          <polygon points={`${P.l},${H - P.b} ${poly} ${X(last.t).toFixed(1)},${H - P.b}`} fill={`url(#${gid})`} />
+          {fill && <polygon points={`${P.l},${H - P.b} ${poly} ${X(last.t).toFixed(1)},${H - P.b}`} fill={`url(#${gid})`} />}
           <polyline points={poly} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
           {marked && pts.map((p, i) => (p.m == null ? null :
             <circle key={'m' + i} cx={X(p.t)} cy={Y(p.y)} r={2.4 + p.m * 3} fill={color} opacity={0.3 + p.m * 0.7} />))}

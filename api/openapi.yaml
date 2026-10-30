@@ -1558,6 +1558,133 @@ paths:
                 invalid: { value: { error: "invalid state" } }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
+  /api/weighin:
+    post:
+      tags: [data]
+      operationId: postWeighIn
+      summary: Add one weigh-in (ingest token)
+      description: |
+        For a script on the person's own phone or computer, such as an iOS Shortcut that
+        reads the last weight from Apple Health. Authenticated by the **ingest token** made
+        in Settings (`POST /api/account/ingest-token`) as `Authorization: Bearer ogw_...`;
+        a session cookie or a paired-app token is not accepted here, and the ingest token
+        is accepted nowhere else.
+
+        Send `date` (the day it was weighed, `YYYY-MM-DD`, no later than tomorrow) and
+        exactly one of `kg` or `lb`; it is converted to the profile's unit and rounded to
+        two decimals. `extras` may carry `bf` (body fat %), `mm` (muscle mass, in the unit
+        of the weight sent), `bw` (body water %) and `vf` (visceral fat rating); they are
+        stored on the entry as `bf`, `mm`, `bw`, `vf` and shown in the weigh-ins list.
+        Anything else is a 400. `source` (a-z, 0-9, `_`, `-`, up to 20, default `scale`)
+        is stored as the entry's `src`.
+
+        The list holds one entry per day. A second post for the same day and source
+        replaces the first; a day that already has an entry from another source (one typed
+        in the app has none) is left alone and answered `applied: false`. The write takes
+        the same road as `PUT /api/data`: revision + 1, a new write id, and the entry is
+        stamped like any other writer's, so an open app shows it at its next revision
+        check (every 30 s). A profile that has never synced (no document) answers 409.
+        Audited as `weighin.ingest`.
+      security:
+        - ingestToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date]
+              properties:
+                date: { type: string, format: date }
+                kg: { type: number, description: "Weight in kg (send this or lb)." }
+                lb: { type: number, description: "Weight in lb (send this or kg)." }
+                extras:
+                  type: object
+                  properties:
+                    bf: { type: number, description: Body fat %. }
+                    mm: { type: number, description: Muscle mass, in the unit of the weight sent. }
+                    bw: { type: number, description: Body water %. }
+                    vf: { type: number, description: Visceral fat rating. }
+                source: { type: string, description: "Where it came from; default `scale`." }
+            example: { date: "2026-10-30", lb: 165.4, extras: { bf: 18.2 } }
+      responses:
+        '200':
+          description: "Stored (applied true), or skipped because the day holds an entry from another source."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  applied: { type: boolean }
+                  replaced: { type: boolean, description: An earlier entry of the same source was replaced. }
+                  reason: { type: string, description: Why nothing was stored (applied false). }
+                  entry: { type: object, description: The stored entry, in the profile's unit. }
+                  unit: { type: string, enum: [kg, lb] }
+                  rev: { type: integer }
+                  wid: { type: string }
+              example: { ok: true, applied: true, replaced: false, entry: { d: "2026-10-30", w: 165.4, bf: 18.2, src: scale }, unit: lb, rev: 412, wid: 9f1c2ab04d77e310 }
+        '400': { description: "A field is missing, unknown or out of range.", content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: "Missing, wrong or revoked ingest token.", content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: "The profile has no stored data yet.", content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: "The stored document cannot be read.", content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /api/account/ingest-token:
+    get:
+      tags: [data]
+      operationId: getIngestToken
+      summary: Is there a weigh-in ingest token?
+      description: Whether the profile has one, when it was made and when it last posted. Never the token.
+      responses:
+        '200':
+          description: The state of the token.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  active: { type: boolean }
+                  created: { type: [number, 'null'], description: Made at (ms). }
+                  last: { type: [number, 'null'], description: Last used (ms). }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [data]
+      operationId: createIngestToken
+      summary: Make (or rotate) the weigh-in ingest token
+      description: |
+        Returns a new token, once: it is stored only as a SHA-256, one per profile, and a
+        new one replaces the one before. It can add weigh-ins (`POST /api/weighin`) and do
+        nothing else; it survives signing out, and goes with a revoke, an admin password
+        reset or the profile being deleted. Audited as `ingest.token.create`.
+      responses:
+        '200':
+          description: The token, once.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  created: { type: number }
+              example: { token: "ogw_Zk3m...", created: 1790000000000 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    delete:
+      tags: [data]
+      operationId: revokeIngestToken
+      summary: Revoke the weigh-in ingest token
+      description: Stops the token working at once. Audited as `ingest.token.revoke`.
+      responses:
+        '200':
+          description: Revoked (or there was none).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  active: { type: boolean }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
   /api/data/rev:
     get:
       tags: [data]
@@ -2965,6 +3092,12 @@ components:
         Secure); the unprefixed `gymsid` is what a plain-http `localhost` instance
         uses, and is still accepted for pre-upgrade sessions. HttpOnly + SameSite=Lax;
         browser clients never handle the value directly.
+    ingestToken:
+      type: http
+      scheme: bearer
+      description: >-
+        The weigh-in ingest token (`ogw_...`) made in Settings. Valid for `POST /api/weighin`
+        only; a session token is not accepted there and this one is not accepted anywhere else.
     bearerAuth:
       type: http
       scheme: bearer

@@ -18,6 +18,7 @@ import WorkoutMediaSection, { workoutMediaCount } from './components/WorkoutMedi
 import { mediaOf, normalizeMediaRef, cleanUrl, workoutMediaOf } from './lib/media-refs.js'
 import { syncMedia } from './lib/media-sync.js'
 import LineChart from './components/LineChart.jsx'
+import WeightChart from './components/WeightChart.jsx'
 import Stepper from './components/Stepper.jsx'
 import { durationSheet } from './components/DurationWheel.jsx'
 import { SG_NAME_MAX } from './lib/superset-meta.js'
@@ -349,6 +350,17 @@ export function bwSheet(opts = {}) {
   return h
 }
 
+// What a scale sent along with the weight (POST /api/weighin `extras`), as short labels. Only what
+// is there: a weigh-in typed in the app has none of these.
+function weighInExtras(b, unit) {
+  const out = []
+  if (b.bf != null) out.push(t('Body fat {0}%', fmtNum(b.bf)))
+  if (b.mm != null) out.push(t('Muscle {0}', fmtNum(b.mm) + ' ' + unit))
+  if (b.bw != null) out.push(t('Water {0}%', fmtNum(b.bw)))
+  if (b.vf != null) out.push(t('Visceral fat {0}', fmtNum(b.vf)))
+  return out
+}
+
 // One weigh-in with its delete button, in the log sheet's recent three and in the full list.
 // The full list asks first (`confirm`): it is months of history scrolled through on a phone, and a
 // stray tap on one of its trash buttons took a past weigh-in with nothing to bring it back. The log
@@ -359,8 +371,11 @@ function WeighInRow({ b, unit, confirm = false }) {
     title: t('Delete weigh-in?'), message: `${fmtDate(b.d, true)} · ${fmtNum(b.w)} ${unit}`,
     confirmText: t('Delete'), danger: true, onConfirm: delEntry,
   })
+  const extras = weighInExtras(b, unit)
   return <div className="row between" style={{ padding: '9px 2px', borderBottom: '1px solid var(--sep)' }}>
-    <span className="small muted">{fmtDate(b.d, true)}</span>
+    <span className="small muted">{fmtDate(b.d, true)}
+      {extras.length > 0 && <span className="dim wi-extras" style={{ display: 'block', fontSize: 12 }}>{extras.join(' · ')}</span>}
+    </span>
     <span className="row" style={{ gap: 12 }}><b>{fmtNum(b.w)} {unit}</b>
       <button className="iconbtn" style={{ width: 32, height: 30, borderRadius: 8, fontSize: 15, color: 'var(--red)' }} onClick={confirm ? ask : delEntry} aria-label={t('Delete weigh-in')}><Icon name="trash" /></button></span>
   </div>
@@ -368,15 +383,12 @@ function WeighInRow({ b, unit, confirm = false }) {
 
 /* ============================ weigh-ins ============================ */
 // Every weigh-in, week by week (Discord 'Weight'): each week under its mean and how far that
-// moved from the week before, the numbers behind the curve on the card. The chart plots the
-// weekly means, since the swing from one morning to the next is what makes a single weigh-in
-// hard to read. The weeks start on the profile's first day of the week.
+// moved from the week before, the numbers behind the curve on the card. The chart above them is
+// the weight chart: every weigh-in as a dot, the 7-day average as the line. The weeks start on the profile's first day of the week.
 function WeighIns() {
   const st = useStore(s => s.S)
   const ws = weekStartOf(st)
   const weeks = useMemo(() => weeklyWeights(st.bodyweight, ws), [st.bodyweight, ws])
-  const points = useMemo(() => [...weeks].reverse()
-    .map(w => ({ t: new Date(w.key + 'T12:00:00').getTime(), y: Math.round(w.avg * 100) / 100, d: w.key })), [weeks])
   const n = weeks.reduce((sum, w) => sum + w.n, 0)
   if (!n) return <>
     <h3>{t('Weigh-ins')}</h3>
@@ -385,8 +397,8 @@ function WeighIns() {
   return <>
     <h3 style={{ marginBottom: 2 }}>{t('Weigh-ins')}</h3>
     <div className="muted small" style={{ marginBottom: 10 }}>{tn('{0} weigh-in', '{0} weigh-ins', n)}</div>
-    <div className="chart"><LineChart points={points} h={140} unit={st.unit} goal={st.targetW} /></div>
-    <div className="small dim" style={{ marginTop: 6 }}>{t('Weekly average')}</div>
+    <WeightChart bodyweight={st.bodyweight} h={150} unit={st.unit} goal={st.targetW} deltaColor={bwDeltaColor} />
+    <div className="small dim" style={{ marginTop: 10 }}>{t('Weekly average')}</div>
     {weeks.map(w => {
       // Only a change the display can show: at one decimal, 0.02 kg is "0", and an arrow over a
       // zero says something moved when, as far as the screen goes, nothing did.
