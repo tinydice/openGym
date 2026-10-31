@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { fmtNum, fmtDate, MONTHS, todayISO } from '../lib/format.js'
 import { t } from '../lib/i18n.js'
 import { trendSeries, inRange, changeOver, WEIGHT_RANGES } from '../lib/weight-trend.js'
@@ -19,6 +19,7 @@ export default function WeightChart({ bodyweight, unit = '', goal = null, h = 15
   const [picked, setPicked] = useState(null)   // the chip tapped; null until then
   const [hover, setHover] = useState(null)
   const svgRef = useRef(null), wrapRef = useRef(null), tipRef = useRef(null)
+  const cleared = useRef(false)   // a tap that cleared the selection: the drag that follows it does not pick again
   const series = useMemo(() => trendSeries(bodyweight), [bodyweight])
   const range = picked != null ? picked : (inRange(series, DEFAULT_RANGE, todayISO()).length ? DEFAULT_RANGE : 0)
   const cut = useMemo(() => inRange(series, range, todayISO()), [series, range])
@@ -26,6 +27,14 @@ export default function WeightChart({ bodyweight, unit = '', goal = null, h = 15
   const latest = series[series.length - 1]
 
   useLayoutEffect(() => { setHover(null) }, [bodyweight, range])
+  // A tap anywhere outside the chart lets go of the selected weigh-in. On a phone nothing else ever
+  // would: there is no mouse to leave the chart.
+  useEffect(() => {
+    if (!hover) return
+    const away = e => { if (!wrapRef.current?.contains(e.target)) setHover(null) }
+    document.addEventListener('pointerdown', away)
+    return () => document.removeEventListener('pointerdown', away)
+  }, [hover])
   // Placed from its measured size so it never hangs off the clipped edge (same approach as LineChart).
   useLayoutEffect(() => {
     const tip = tipRef.current, wrap = wrapRef.current
@@ -118,37 +127,45 @@ export default function WeightChart({ bodyweight, unit = '', goal = null, h = 15
   const last = cut[cut.length - 1]
   const hoverPts = cut.map(p => ({ ...p, x: X(p.t), y: Y(p.w) }))
   const showYear = new Set(cut.map(p => p.d.slice(0, 4))).size > 1
-  const onMove = e => {
-    const c = e.touches ? e.touches[0] : e
-    if (!c || c.clientX === undefined) return
+  const nearest = e => {
     const r = svgRef.current.getBoundingClientRect()
-    const vx = (c.clientX - r.left) / (r.width || W) * W
+    const vx = (e.clientX - r.left) / (r.width || W) * W
     let best = hoverPts[0]
     hoverPts.forEach(p => { if (Math.abs(p.x - vx) < Math.abs(best.x - vx)) best = p })
-    setHover(best)
+    return best
   }
+  // Mouse: the weigh-in under the pointer, gone when it leaves. Finger or pen: a tap picks the nearest
+  // weigh-in, a tap on the picked one puts it down again, and a drag slides along the line.
+  const onPointerDown = e => {
+    if (e.pointerType === 'mouse') return
+    const best = nearest(e)
+    cleared.current = !!hover && hover.t === best.t
+    setHover(cleared.current ? null : best)
+  }
+  const onPointerMove = e => {
+    if (e.pointerType === 'mouse') setHover(nearest(e))
+    else if (e.buttons && !cleared.current) setHover(nearest(e))
+  }
+  const onPointerLeave = e => { if (e.pointerType === 'mouse') setHover(null) }
 
   return <div className="weight-chart">
     {header}
     {chips}
     <div className="chart">
       <div className="chart-i" ref={wrapRef}
-        onMouseMove={onMove} onMouseDown={onMove} onMouseLeave={() => setHover(null)}
-        onTouchStart={onMove} onTouchMove={onMove}>
+        onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerLeave={onPointerLeave}>
         <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ aspectRatio: `${W}/${H}` }}>
           {grid}
           {goal != null && isFinite(goal) && <>
-            <line x1={P.l} y1={Y(goal)} x2={W - P.r} y2={Y(goal)} stroke="var(--yellow)" strokeWidth="1.6" strokeDasharray="7 4" />
-            <text x={W - P.r - 2} y={Y(goal) - 5} textAnchor="end" fontSize="9.5" fontWeight="700" fill="var(--yellow)">{fmtNum(goal)}</text>
+            <line x1={P.l} y1={Y(goal)} x2={W - P.r} y2={Y(goal)} stroke="var(--goal)" strokeWidth="1.6" strokeDasharray="7 4" />
+            <text x={W - P.r - 2} y={Y(goal) - 5} textAnchor="end" fontSize="9.5" fontWeight="700" fill="var(--goal)">{fmtNum(goal)}</text>
           </>}
           {/* each weigh-in: small and faint, so the average reads as the line and these as the scatter */}
           {cut.map((p, i) => <circle key={'d' + i} className="wc-dot" cx={X(p.t)} cy={Y(p.w)} r="2.2" fill="var(--label)" opacity=".28" />)}
           {!single && <polyline className="wc-avg" points={line} fill="none" stroke="var(--acc)" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />}
           <circle cx={X(last.t)} cy={Y(last.avg)} r="4.2" fill="var(--acc)" />
-          {hover && <g>
-            <line className="cvl" x1={hover.x} y1={P.t} x2={hover.x} y2={H - P.b} stroke="var(--label-3)" strokeWidth="1" strokeDasharray="3 3" />
-            <circle cx={hover.x} cy={hover.y} r="4" fill="var(--label)" stroke="var(--bg)" strokeWidth="2" />
-          </g>}
+          {/* the picked weigh-in: a green ring round its own small dot, nothing filled */}
+          {hover && <circle className="wc-pick" cx={hover.x} cy={hover.y} r="6.5" fill="none" stroke="var(--green)" strokeWidth="2.2" />}
         </svg>
         {hover && <div className="ctip" ref={tipRef}>
           {fmtDate(hover.d, true, showYear)} · {fmtNum(hover.w)}{unit ? ' ' + unit : ''}

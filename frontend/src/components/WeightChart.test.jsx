@@ -66,6 +66,72 @@ describe('WeightChart', () => {
   })
 })
 
+// Picking a weigh-in. Mouse: it follows the pointer. Finger: a tap picks, a tap on it again or
+// anywhere else puts it down, a drag slides. The pick is a green ring, never a filled white dot.
+describe('WeightChart picking a weigh-in', () => {
+  const fire = (el, type, init = {}) => {
+    const Ev = globalThis.PointerEvent || MouseEvent
+    const e = new Ev(type, { bubbles: true, cancelable: true, ...init })
+    if (!('pointerType' in e)) Object.defineProperty(e, 'pointerType', { value: init.pointerType || 'touch' })
+    act(() => { el.dispatchEvent(e) })
+  }
+  const data = [mk(20, 170), mk(10, 168), mk(2, 166)]
+  const dotX = i => Number(host.querySelectorAll('.wc-dot')[i].getAttribute('cx'))
+  const area = () => host.querySelector('.chart-i')
+  const tap = i => fire(area(), 'pointerdown', { pointerType: 'touch', clientX: dotX(i) })
+  const ring = () => host.querySelector('.wc-pick')
+
+  it('a tap rings the nearest weigh-in in green, with no filled dot and no crosshair', () => {
+    draw({ bodyweight: data })
+    expect(ring()).toBeNull()
+    tap(1)
+    expect(ring()).toBeTruthy()
+    expect(Number(ring().getAttribute('cx'))).toBeCloseTo(dotX(1), 1)
+    expect(ring().getAttribute('fill')).toBe('none')
+    expect(ring().getAttribute('stroke')).toBe('var(--green)')
+    expect(host.querySelector('.cvl')).toBeNull()
+    expect(host.querySelector('.ctip')).toBeTruthy()
+  })
+  it('a tap on the picked weigh-in puts it down again, and the drag after it does not pick again', () => {
+    draw({ bodyweight: data })
+    tap(1)
+    tap(1)
+    expect(ring()).toBeNull()
+    fire(area(), 'pointermove', { pointerType: 'touch', buttons: 1, clientX: dotX(2) })
+    expect(ring()).toBeNull()
+  })
+  it('a tap anywhere outside the chart lets go of it', () => {
+    draw({ bodyweight: data })
+    tap(2)
+    expect(ring()).toBeTruthy()
+    fire(document.body, 'pointerdown', { pointerType: 'touch' })
+    expect(ring()).toBeNull()
+  })
+  it('tapping another weigh-in moves the ring, and a finger drag slides it', () => {
+    draw({ bodyweight: data })
+    tap(0)
+    tap(2)
+    expect(Number(ring().getAttribute('cx'))).toBeCloseTo(dotX(2), 1)
+    fire(area(), 'pointermove', { pointerType: 'touch', buttons: 1, clientX: dotX(1) })
+    expect(Number(ring().getAttribute('cx'))).toBeCloseTo(dotX(1), 1)
+  })
+  it('a mouse hovers to pick and leaving lets go; clicking does not toggle it', () => {
+    draw({ bodyweight: data })
+    fire(area(), 'pointermove', { pointerType: 'mouse', clientX: dotX(1) })
+    expect(ring()).toBeTruthy()
+    fire(area(), 'pointerdown', { pointerType: 'mouse', clientX: dotX(1) })
+    expect(ring()).toBeTruthy()
+    // React builds pointer-leave from pointerout, with nothing entered (relatedTarget null) = left the window
+    fire(area(), 'pointerout', { pointerType: 'mouse', relatedTarget: null })
+    expect(ring()).toBeNull()
+  })
+  it('the goal line uses the goal color, not yellow', () => {
+    draw({ bodyweight: data, goal: 160 })
+    const line = host.querySelector('line[stroke-dasharray="7 4"]')
+    expect(line.getAttribute('stroke')).toBe('var(--goal)')
+  })
+})
+
 describe('LineChart fill', () => {
   const pts = [{ t: Date.UTC(2026, 0, 1), y: 80, d: '2026-01-01' }, { t: Date.UTC(2026, 0, 15), y: 82, d: '2026-01-15' }]
   it('has the gradient area by default and drops it with fill={false}', () => {
