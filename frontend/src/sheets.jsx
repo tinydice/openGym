@@ -1285,7 +1285,7 @@ function usageMap(st) {
   return u
 }
 // Exercises you have actually logged, with the day and top weight of the latest time: the
-// "Done before" list a workout's Add exercise opens on, newest first.
+// "History" list a workout's Add exercise opens on, newest first.
 function lastDoneMap(st) {
   const m = {}
   st.workouts.forEach(w => w.entries.forEach(e => {
@@ -1402,7 +1402,7 @@ function ExercisePicker({ onPick, title, close, like, recent }) {
         those are cross-body-part views where a stale equipment filter would be confusing. */}
     <div className="chips" ref={bpStrip} style={{ margin: eqOpts.length > 1 || catOpts.length > 1 ? '10px 0 6px' : '10px 0' }}>
       {likeTg && <button className={'chip nocap' + (bp === SAME ? ' on' : '')} onClick={() => { setBp(SAME); setShown(50) }}><Icon name="figureStrength" style={{ fontSize: 12, display: 'inline-block', marginInlineEnd: 4, verticalAlign: '-1px' }} />{t('Same muscle: {0}', t(MUSCLE_NAME[likeTg] || likeTg))}</button>}
-      {doneCount > 0 && <button className={'chip nocap' + (bp === DONE ? ' on' : '')} onClick={() => { setBp(DONE); setEq(''); setShown(50) }}>{t('Done before')} ({doneCount})</button>}
+      {doneCount > 0 && <button className={'chip nocap' + (bp === DONE ? ' on' : '')} onClick={() => { setBp(DONE); setEq(''); setShown(50) }}>{t('History')} ({doneCount})</button>}
       {favCount > 0 && <button className={'chip' + (bp === '☆' ? ' on' : '')} onClick={() => { setBp('☆'); setEq(''); setShown(50) }}><Icon name="starFill" className="fav-star" />{t('Favourites')} ({favCount})</button>}
       {chosenCount > 0 && <button className={'chip' + (bp === '★' ? ' on' : '')} onClick={() => { setBp('★'); setEq(''); setShown(50) }}><Icon name="starFill" style={{ fontSize: 12, display: 'inline-block', marginInlineEnd: 4, verticalAlign: '-1px' }} />{t('Chosen')} ({chosenCount})</button>}
       <button className={'chip nocap' + (!bp ? ' on' : '')} onClick={() => { setBp(''); setShown(50) }}>{t('All')}</button>
