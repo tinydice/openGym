@@ -1426,7 +1426,7 @@ function ActiveWorkout() {
     if (quick) { commit(seed || defaultConfig(ex.id)); useUI.getState().toast(t('“{0}” added to {1}', exerciseNameText(ex), routine ? routine.name : t('Freestyle'))) }
     // The confirm names what it changes: this workout, never the routine behind it.
     else exConfigSheet(ex, null, commit, null, routine, seed, null, t('Add to this workout'))
-  })
+  }, { recent: true })
   // Ending the session without saving it. The ⋯ menu's last item since the header's ✕ became the
   // ⌄ that only leaves the screen (v1.3.11).
   // ‹ out of a session never started, with nothing ticked, was only a look at it: it goes away
