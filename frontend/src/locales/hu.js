@@ -212,7 +212,7 @@ export default {
   'Superset {0} / {1}': 'Szuperszett {0} / {1}',
   'Exercise {0} / {1}': 'Gyakorlat {0} / {1}',
   'Superset · do these back-to-back, rest when done': 'Szuperszett · végezd egymás után, pihenj csak utána',
-  'Freestyle workout. Add your first exercise and off you go.': 'Szabad edzés. Add hozzá az első gyakorlatot, és mehet.',
+  'Freestyle workout. Add your first exercise from the ⋯ menu.': 'Szabad edzés. Add hozzá az első gyakorlatot a ⋯ menüből.',
   'Finish workout early · {0} exercises': 'Edzés korai befejezése · {0} gyakorlat',
   'Rest’s over. Next set!': 'Vége a pihenőnek. Jöhet a következő sorozat!',
   // --- home ---

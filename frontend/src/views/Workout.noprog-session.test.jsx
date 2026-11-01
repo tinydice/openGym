@@ -154,7 +154,7 @@ describe('don’t count the whole workout for progression', () => {
   it('an exercise added afterwards joins it', () => {
     renderWorkout([entry(BENCH, 'main', 100)])
     tapHeaderItem()
-    const add = [...container.querySelectorAll('button')].find(b => b.textContent.trim() === 'Add exercise')
+    const add = [...openHeaderMenu().querySelectorAll('.menu-item')].find(it => it.querySelector('.tt')?.textContent === 'Add exercise')
     act(() => add.click())
     const picker = useUI.getState().sheets.at(-1)
     act(() => picker.render(picker.close).props.onPick(EXDB.find(e => e.id === SQUAT), true))
@@ -177,7 +177,7 @@ describe('don’t count the whole workout for progression', () => {
   it('without it, an exercise kept out on its own is not passed on to one added after it', () => {
     renderWorkout([entry(BENCH, 'main', 100, { noProg: true })])
     expect(isOn(headerItem())).toBe(false)
-    const add = [...container.querySelectorAll('button')].find(b => b.textContent.trim() === 'Add exercise')
+    const add = [...openHeaderMenu().querySelectorAll('.menu-item')].find(it => it.querySelector('.tt')?.textContent === 'Add exercise')
     act(() => add.click())
     const picker = useUI.getState().sheets.at(-1)
     act(() => picker.render(picker.close).props.onPick(EXDB.find(e => e.id === SQUAT), true))

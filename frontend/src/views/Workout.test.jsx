@@ -187,9 +187,10 @@ async function toggleSet(index) {
   await act(async () => { checkbox.dispatchEvent(new dom.Event('click', { bubbles: true })) })
 }
 
+// The Prev / Next row is gone: the numbered unit circles at the top (and swiping) move between exercises.
 async function pressNext() {
-  const button = [...container.querySelectorAll('button')]
-    .find(button => button.textContent.trim() === 'Next')
+  const chips = [...container.querySelectorAll('.wchip')]
+  const button = chips[chips.findIndex(c => c.classList.contains('cur')) + 1]
   expect(button).toBeTruthy()
   await act(async () => { button.dispatchEvent(new dom.Event('click', { bubbles: true })) })
 }
@@ -207,11 +208,14 @@ async function pressProgression(index = 0) {
   return button
 }
 
-// Discard sits at the bottom of the workout, under the Finish button; the header's ⌄ only leaves the screen.
+// Discard lives in the header ⋯ menu (last group); the header's ⌄ only leaves the screen.
 async function requestDiscard() {
-  const discard = [...container.querySelectorAll('button')].find(b => b.textContent === 'Discard workout')
+  const more = container.querySelector('button[aria-label="Workout options"]')
+  expect(more).toBeTruthy()
+  await act(async () => { more.dispatchEvent(new dom.Event('click', { bubbles: true })) })
+  const discard = menuItemsOf(mocks.menuSheet.mock.calls.at(-1)[0]).find(it => it.label === 'Discard workout')
   expect(discard).toBeTruthy()
-  await act(async () => { discard.dispatchEvent(new dom.Event('click', { bubbles: true })) })
+  await act(async () => { discard.onClick() })
 }
 
 async function rerender() {
@@ -219,10 +223,12 @@ async function rerender() {
 }
 
 async function addExerciseThroughSheets(ex = { id: 'added-exercise' }, cfg = { mode: 'reps', sets: 1, reps: 5, weight: 0 }) {
-  const addButton = [...container.querySelectorAll('button')]
-    .find(button => button.textContent.trim() === 'Add exercise')
-  expect(addButton).toBeTruthy()
-  await act(async () => { addButton.dispatchEvent(new dom.Event('click', { bubbles: true })) })
+  const more = container.querySelector('button[aria-label="Workout options"]')
+  expect(more).toBeTruthy()
+  await act(async () => { more.dispatchEvent(new dom.Event('click', { bubbles: true })) })
+  const addItem = menuItemsOf(mocks.menuSheet.mock.calls.at(-1)[0]).find(it => it.label === 'Add exercise')
+  expect(addItem).toBeTruthy()
+  await act(async () => { addItem.onClick() })
 
   const pickerCall = mocks.exercisePicker.mock.calls.at(-1)
   expect(pickerCall?.[0]).toEqual(expect.any(Function))
@@ -2341,16 +2347,21 @@ describe('workout view header menu', () => {
     return mocks.menuSheet.mock.calls.at(-1)[0]
   }
 
-  it('groups Workout settings, Add and This workout, then a Layout sheet with the four layouts marked current', async () => {
+  it('groups Add, This workout, settings and Discard, then a Layout sheet with the four layouts marked current', async () => {
     await mount([exercise('plain-bench', [false])], 0, { active: { workoutView: 'list', routineIds: [] } })
 
     const menu = await openMenu()
-    expect(menu.sections.map(g => g.title)).toEqual([undefined, 'Add', 'This workout'])
-    expect(menuItemsOf(menu).map(it => it.label)).toEqual([
-      'Workout settings', 'Add exercise', 'Add routine', 'Pause workout', 'Rename workout', 'Layout', 'Add session note', 'Don’t count for progression',
+    expect(menu.sections.map(g => g.title)).toEqual([undefined, undefined, undefined, undefined])
+    expect(menu.sections.map(g => g.items.filter(Boolean).map(it => it.label))).toEqual([
+      ['Add exercise', 'Add routine'],
+      ['Pause workout', 'Rename workout', 'Add session note', 'Don’t count for progression'],
+      ['Workout settings', 'Layout'],
+      ['Discard workout'],
     ])
+    expect(menuItemsOf(menu).every(it => it.icon)).toBe(true)
+    expect(item(menu, 'Add routine').sub).toBeUndefined()
     expect(item(menu, 'Workout settings').sub).toBe('1:30 rest · Silent')
-    expect(menuItemsOf(menu).map(it => it.label)).not.toContain('Discard workout')
+    expect(item(menu, 'Discard workout')).toMatchObject({ danger: true })
     expect(item(menu, 'Don’t count for progression')).toMatchObject({ sub: 'Every exercise in this workout', on: false })
     expect(item(menu, 'Layout').sub).toBe('List')
 
@@ -3219,8 +3230,8 @@ describe('mark all sets done while logging a past workout', () => {
       exercise('plain-row', [false], { sets: [{ w: 40, r: 8, done: false, phase: 'warmup' }, { w: 70, r: 8, done: false }] }),
     ], 0, { active: { backfill: { durationMin: 60, replaceId: null }, routineIds: [] } })
     const menu = await openMenu()
-    expect(menu.sections[2].items.filter(Boolean)[0].label).toBe('Mark all sets done')
-    await act(async () => { menu.sections[2].items.filter(Boolean)[0].onClick() })
+    expect(menu.sections[1].items.filter(Boolean)[0].label).toBe('Mark all sets done')
+    await act(async () => { menu.sections[1].items.filter(Boolean)[0].onClick() })
     expect(mocks.S.active.entries.every(e => e.sets.every(s => s.done))).toBe(true)
     expect(mocks.S.active.entries.map(e => e.topW)).toEqual([60, 70])
     expect(mocks.workoutCompleteSheet).toHaveBeenCalledTimes(1)
@@ -3385,16 +3396,31 @@ describe('the workout screen chrome (v1.3.11)', () => {
     expect(container.querySelector('button[aria-label="Minimize"]')).toBeNull()
   })
 
-  it('leads the workout menu with Workout settings, which opens its sheet', async () => {
+  it('has Workout settings in the workout menu, which opens its sheet', async () => {
     await mount([exercise('plain-bench', [false])], 0, { restSec: 0, sound: true })
     await click(container.querySelector('button[aria-label="Workout options"]'))
-    const ws = menuItemsOf(lastMenu())[0]
-    expect(ws).toMatchObject({ label: 'Workout settings', sub: 'No rest timer · Sound', accent: true })
+    const ws = item('Workout settings')
+    expect(ws).toMatchObject({ label: 'Workout settings', sub: 'No rest timer · Sound' })
     ws.onClick()
     expect(mocks.workoutSettingsSheet).toHaveBeenCalledOnce()
   })
 
-  it('adds an exercise from the workout menu the same way as the button under the session', async () => {
+  it('moves Add exercise, Discard and the session note into the ⋯ menu: no Prev/Next or bottom buttons remain', async () => {
+    await mount([exercise('plain-bench', [false]), exercise('plain-row', [false])])
+    const names = () => [...container.querySelectorAll('button')].map(b => b.textContent.trim())
+    expect(names()).not.toContain('Prev')
+    expect(names()).not.toContain('Next')
+    expect(names()).not.toContain('Add exercise')
+    expect(names()).not.toContain('Add session note')
+    expect(names()).not.toContain('Discard workout')
+    expect(names().some(n => n.startsWith('Finish workout'))).toBe(true)
+    await click(container.querySelector('button[aria-label="Workout options"]'))
+    expect(item('Add exercise')).toBeTruthy()
+    expect(item('Discard workout')).toBeTruthy()
+    expect(item('Add session note')).toBeTruthy()
+  })
+
+  it('adds an exercise from the workout menu', async () => {
     await mount([exercise('plain-bench', [false])])
     await click(container.querySelector('button[aria-label="Workout options"]'))
     item('Add exercise').onClick()

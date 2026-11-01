@@ -214,7 +214,7 @@ export default {
   'Superset {0} / {1}': 'Superseria {0} / {1}',
   'Exercise {0} / {1}': 'Ćwiczenie {0} / {1}',
   'Superset · do these back-to-back, rest when done': 'Superseria · rób jedno po drugim, odpocznij na końcu',
-  'Freestyle workout. Add your first exercise and off you go.': 'Trening dowolny. Dodaj pierwsze ćwiczenie i jazda!',
+  'Freestyle workout. Add your first exercise from the ⋯ menu.': 'Trening dowolny. Dodaj pierwsze ćwiczenie z menu ⋯.',
   'Finish workout early · {0} exercises': { one: 'Zakończ wcześniej · {0} ćwiczenie', few: 'Zakończ wcześniej · {0} ćwiczenia', many: 'Zakończ wcześniej · {0} ćwiczeń', other: 'Zakończ wcześniej · {0} ćwiczeń' },
   'Rest’s over. Next set!': 'Koniec przerwy. Następna seria!',
   'Hi {0}': 'Cześć, {0}',

@@ -212,7 +212,7 @@ export default {
   'Superset {0} / {1}': 'ซูเปอร์เซ็ต {0} / {1}',
   'Exercise {0} / {1}': 'ท่า {0} / {1}',
   'Superset · do these back-to-back, rest when done': 'ซูเปอร์เซ็ต · ทำต่อเนื่องกัน แล้วค่อยพักหลังทำครบทั้งคู่',
-  'Freestyle workout. Add your first exercise and off you go.': 'ออกกำลังกายแบบฟรีสไตล์ เพิ่มท่าแรกแล้วลุยเลย',
+  'Freestyle workout. Add your first exercise from the ⋯ menu.': 'เวิร์กเอาต์อิสระ เพิ่มท่าแรกของคุณจากเมนู ⋯',
   'Finish workout early · {0} exercises': 'จบก่อนกำหนด · {0} ท่า',
   'Rest’s over. Next set!': 'หมดเวลาพักแล้ว เซ็ตถัดไป!',
   // --- home ---

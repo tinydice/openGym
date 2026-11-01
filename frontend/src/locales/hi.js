@@ -214,7 +214,7 @@ export default {
   'Superset {0} / {1}': 'सुपरसेट {0} / {1}',
   'Exercise {0} / {1}': 'व्यायाम {0} / {1}',
   'Superset · do these back-to-back, rest when done': 'सुपरसेट · इन्हें लगातार करें, अंत में आराम',
-  'Freestyle workout. Add your first exercise and off you go.': 'फ्रीस्टाइल वर्कआउट। पहला व्यायाम जोड़ें और शुरू हो जाइए।',
+  'Freestyle workout. Add your first exercise from the ⋯ menu.': 'फ्रीस्टाइल वर्कआउट। ⋯ मेनू से अपना पहला व्यायाम जोड़ें।',
   'Finish workout early · {0} exercises': 'जल्दी समाप्त करें · {0} व्यायाम',
   'Rest’s over. Next set!': 'आराम खत्म। अगला सेट!',
   'Hi {0}': 'नमस्ते {0}',

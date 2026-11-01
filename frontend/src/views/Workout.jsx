@@ -1449,28 +1449,32 @@ function ActiveWorkout() {
     title: t('Discard workout?'), message: t('The sets you logged in this session will be lost.'), confirmText: t('Discard'), danger: true,
     onConfirm: () => { update(s => { s.active = null }); stopRest(); stopWork(); nav('/home') },
   })
-  // The header ⋯, in groups: the settings you change at the gym first (their own sheet, the same
-  // values as Settings), then what to add, what to change about this workout, and Discard last.
-  // Layout here stays this session's own (s.active.workoutView); the settings sheet's Layout is
-  // the saved one.
+  // The header ⋯, four groups with no titles, in this order: what to add (exercise, routine);
+  // what to change about this workout (start/pause, mark all done, rename, session note, no
+  // progression); the settings (their own sheet, the same values as Settings, then this
+  // session's Layout); and Discard last. Layout here stays this session's own
+  // (s.active.workoutView); the settings sheet's Layout is the saved one.
   const openViewMenu = () => menuSheet({
     sections: [
       { items: [
-        { icon: 'gear', accent: true, chevron: true, label: t('Workout settings'),
-          sub: [S.restSec > 0 ? t('{0} rest', fmtRest(S.restSec)) : t('No rest timer'), S.sound ? t('Sound') : t('Silent')].join(' · '),
-          onClick: workoutSettingsSheet },
-      ] },
-      { title: t('Add'), items: [
         { icon: 'plusCircle', label: t('Add exercise'), onClick: addExercise },
-        !editing && { icon: 'clipboard', label: t('Add routine'), sub: t('Bring another routine into this session'), onClick: addRoutineToSessionSheet },
+        !editing && { icon: 'clipboard', label: t('Add routine'), onClick: addRoutineToSessionSheet },
       ] },
-      { title: t('This workout'), items: [
+      { items: [
         !editing && !A.backfill && { icon: paused ? 'play' : 'pause', label: fresh ? t('Start workout') : paused ? t('Resume workout') : t('Pause workout'), onClick: paused ? resumeSession : pauseSession },
         A.backfill && A.entries.length > 0 && { icon: 'checkCircle', label: t('Mark all sets done'), onClick: markAllDone },
         { icon: 'pencil', label: t('Rename workout'), onClick: renameWorkoutSheet },
-        { icon: 'layout', label: t('Layout'), sub: LAYOUT_LABEL[workoutView] || LAYOUT_LABEL.cards, onClick: openLayoutMenu },
-        { icon: 'note', label: A.note ? t('Edit session note') : t('Add session note'), onClick: sessionNoteSheet },
+        { icon: 'note', label: A.note ? t('Edit session note') : t('Add session note'), sub: A.note ? (A.note.replace(/\s+/g, " ").trim().slice(0, 60) + (A.note.length > 60 ? "…" : "")) : undefined, onClick: sessionNoteSheet },
         noProgSwitchable && { icon: 'chartLineSlash', label: t('Don’t count for progression'), sub: t('Every exercise in this workout'), on: sessionNoProg(A), onClick: toggleSessionNoProg },
+      ] },
+      { items: [
+        { icon: 'gear', chevron: true, label: t('Workout settings'),
+          sub: [S.restSec > 0 ? t('{0} rest', fmtRest(S.restSec)) : t('No rest timer'), S.sound ? t('Sound') : t('Silent')].join(' · '),
+          onClick: workoutSettingsSheet },
+        { icon: 'layout', label: t('Layout'), sub: LAYOUT_LABEL[workoutView] || LAYOUT_LABEL.cards, onClick: openLayoutMenu },
+      ] },
+      { items: [
+        !editing && { icon: 'trash', danger: true, label: t('Discard workout'), onClick: discardWorkout },
       ] },
     ],
   })
@@ -2067,18 +2071,11 @@ function ActiveWorkout() {
         <ExerciseBlock entryIdx={cur} onPairPrev={onPairPrev} onPairNext={onPairNext} {...blockProps(cur)} />
       )}
       </SwipeCards>
-    </>) : <div className="empty"><div className="ico"><Icon name="shuffle" /></div>{t('Freestyle workout. Add your first exercise and off you go.')}</div>}
+    </>) : <div className="empty"><div className="ico"><Icon name="shuffle" /></div>{t('Freestyle workout. Add your first exercise from the ⋯ menu.')}</div>}
 
     <div style={{ height: 12 }} />
-    {!listMode && <div className="row">
-      <Button icon="chevronLeft" disabled={unitIdx <= 0} onClick={() => navigateUnit(-1)}>{t('Prev')}</Button>
-      <Button trailingIcon="chevronRight" disabled={unitIdx < 0 || unitIdx >= units.length - 1} onClick={() => navigateUnit(1)}>{t('Next')}</Button>
-    </div>}
-    {!listMode && <div style={{ height: 10 }} />}
     {wc.exerciseButtons && listMode && A.entries.length > 0 && <div className="muted small" style={{ marginBottom: 6 }}>{t('Move, swap and remove below act on the exercise marked {0}.', t('Current'))}</div>}
-    <Button onClick={addExercise} icon="plus">{t('Add exercise')}</Button>
     {wc.exerciseButtons && A.entries.length > 0 && <>
-      <div style={{ height: 6 }} />
       <div className="row">
         <Button size="sm" icon="chevronUp" aria-label={t('Move up')}
           disabled={!!work || !canMoveActiveWorkoutUnit(A, cur, -1)} onClick={() => moveCurrentUnit(-1)}>{t('Move up')}</Button>
@@ -2096,13 +2093,6 @@ function ActiveWorkout() {
       </div>
     </>}
     <div style={{ height: 10 }} />
-    {/* Wrapping up is when you know how the session went, so the note sits with the finish
-        button rather than somewhere in the header. */}
-    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
-      <Button size="sm" icon="note" variant={A.note ? 'tinted' : undefined} onClick={sessionNoteSheet}>
-        {A.note ? t('Edit session note') : t('Add session note')}
-      </Button>
-    </div>
     {(() => {
       const exDone = A.entries.filter(e => e.sets.length && e.sets.every(s => s.done)).length
       const allDone = A.entries.length > 0 && exDone === A.entries.length
@@ -2110,9 +2100,6 @@ function ActiveWorkout() {
         {editing ? t('Save changes') : allDone ? t('Finish workout') : t('Finish workout early · {0} exercises', exDone + '/' + A.entries.length)}
       </button>
     })()}
-    {!editing && <div style={{ display: 'flex', justifyContent: 'center', marginTop: 10 }}>
-      <Button size="sm" icon="trash" style={{ color: 'var(--red)' }} onClick={discardWorkout}>{t('Discard workout')}</Button>
-    </div>}
     <div className="workout-end-spacer" />
   </WorkoutScrollAnchor>
 }

@@ -95,7 +95,7 @@ export const PT_BR_OVERRIDES = {
   'Cardio logged': 'Cardio registrado',
   'The sets you logged in this session will be lost.': 'As séries registradas nesta sessão serão perdidas.',
   'Superset · do these back-to-back, rest when done': 'Superset · faça estes exercícios em sequência e descanse ao terminar',
-  'Freestyle workout. Add your first exercise and off you go.': 'Treino livre. Adicione seu primeiro exercício e bora.',
+  'Freestyle workout. Add your first exercise from the ⋯ menu.': 'Treino livre. Adicione seu primeiro exercício pelo menu ⋯.',
   'Set up your weekly routine to get going, or grab a ready-made starter plan.': 'Configure sua rotina semanal para começar, ou pegue um plano inicial já pronto.',
   'Choose starter plan': 'Escolha um plano inicial',
   'Fit to my equipment': 'Adaptar ao meu equipamento',
