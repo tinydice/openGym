@@ -41,6 +41,17 @@ export function fmtDuration(sec, { off = null } = {}) {
 }
 
 /**
+ * A running clock: "12:34" under an hour, "1:02:03" from an hour up, so a session left running overnight reads as hours
+ * and not as a huge minute count. Anything that is not a time reads as 0:00.
+ */
+export function fmtElapsed(sec) {
+  const x = Math.floor(Number(sec))
+  const n = Number.isFinite(x) ? Math.max(0, x) : 0
+  const h = Math.floor(n / 3600), m = Math.floor(n / 60) % 60, s = n % 60
+  return h ? h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0') : m + ':' + String(s).padStart(2, '0')
+}
+
+/**
  * What a screen reader says: "1 minute 30 seconds", "45 seconds", "2 minutes". 0 is `off` when
  * given (the rest timer's "Off"), "0 seconds" otherwise.
  */

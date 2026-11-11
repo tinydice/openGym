@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { REST_MAX, REST_PAUSE_MIN, REST_PAUSE_MAX, clampDuration, splitDuration, joinDuration, fmtDuration, durationText, fmtRest } from './duration.js'
+import { REST_MAX, REST_PAUSE_MIN, REST_PAUSE_MAX, clampDuration, splitDuration, joinDuration, fmtDuration, fmtElapsed, durationText, fmtRest } from './duration.js'
 
 describe('durations for the rest wheels', () => {
   it('has the ranges the wheels offer: rest 0 to 15:00, a rest-pause burst 5 s to 5:00', () => {
@@ -47,5 +47,25 @@ describe('durations for the rest wheels', () => {
     expect(durationText(45)).toBe('45 seconds')
     expect(durationText(0)).toBe('0 seconds')
     expect(durationText(0, { off: 'Off' })).toBe('Off')
+  })
+})
+
+describe('the running clock', () => {
+  it('reads minutes and seconds under an hour, and hours from an hour up', () => {
+    expect(fmtElapsed(0)).toBe('0:00')
+    expect(fmtElapsed(59)).toBe('0:59')
+    expect(fmtElapsed(754)).toBe('12:34')
+    expect(fmtElapsed(3599)).toBe('59:59')
+    expect(fmtElapsed(3600)).toBe('1:00:00')
+    expect(fmtElapsed(3723)).toBe('1:02:03')
+  })
+
+  it('keeps a session left running for a day readable, not a four-digit minute count', () => {
+    expect(fmtElapsed(25 * 3600 + 12)).toBe('25:00:12')
+  })
+
+  it('reads fractions as whole seconds, and junk or negatives as 0:00, never NaN', () => {
+    expect(fmtElapsed(61.9)).toBe('1:01')
+    for (const bad of [NaN, undefined, null, 'x', -5, Infinity]) expect(fmtElapsed(bad)).toBe('0:00')
   })
 })
