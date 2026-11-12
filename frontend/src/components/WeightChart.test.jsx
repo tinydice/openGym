@@ -83,8 +83,9 @@ describe('WeightChart picking a weigh-in', () => {
 
   it('the picked weight is written in green beside the ring', () => {
     draw({ bodyweight: data })
-    expect(host.querySelector('.wc-val')).toBeNull()
+    expect(host.querySelector('.wc-last').textContent).toBe('166')
     tap(1)
+    expect(host.querySelector('.wc-last')).toBeNull()
     expect(host.querySelector('.wc-val').textContent).toBe('168')
   })
   it('a tap rings the nearest weigh-in in green, with no filled dot and no crosshair', () => {

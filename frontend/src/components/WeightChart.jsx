@@ -77,7 +77,7 @@ export default function WeightChart({ bodyweight, unit = '', goal = null, h = 15
   </div>
 
   // ---- geometry
-  const P = { l: 34, r: 12, t: 10, b: 22 }
+  const P = { l: 34, r: 40, t: 10, b: 22 }
   const H = h
   const single = cut.length === 1
   const ys = cut.flatMap(p => [p.w, p.avg])
@@ -169,6 +169,9 @@ export default function WeightChart({ bodyweight, unit = '', goal = null, h = 15
         </svg>
         {hover && <div className="wc-val" style={{ left: hover.x / W * 100 + '%', top: hover.y / H * 100 + '%', ...(hover.x > W * 0.8 ? { transform: 'translate(calc(-100% - 11px), -50%)' } : {}) }}>
           {fmtNum(hover.w)}
+        </div>}
+        {!hover && <div className="wc-val wc-last" style={{ left: X(last.t) / W * 100 + '%', top: Y(last.avg) / H * 100 + '%' }}>
+          {fmtNum(latest.w)}
         </div>}
         {hover && <div className="ctip" ref={tipRef}>
           {fmtDate(hover.d, true, showYear)} · {fmtNum(hover.w)}{unit ? ' ' + unit : ''}
