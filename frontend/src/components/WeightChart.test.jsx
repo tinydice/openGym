@@ -81,6 +81,12 @@ describe('WeightChart picking a weigh-in', () => {
   const tap = i => fire(area(), 'pointerdown', { pointerType: 'touch', clientX: dotX(i) })
   const ring = () => host.querySelector('.wc-pick')
 
+  it('the picked weight is written in green beside the ring', () => {
+    draw({ bodyweight: data })
+    expect(host.querySelector('.wc-val')).toBeNull()
+    tap(1)
+    expect(host.querySelector('.wc-val').textContent).toBe('168')
+  })
   it('a tap rings the nearest weigh-in in green, with no filled dot and no crosshair', () => {
     draw({ bodyweight: data })
     expect(ring()).toBeNull()

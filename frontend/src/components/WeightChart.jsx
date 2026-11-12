@@ -167,6 +167,9 @@ export default function WeightChart({ bodyweight, unit = '', goal = null, h = 15
           {/* the picked weigh-in: a green ring round its own small dot, nothing filled */}
           {hover && <circle className="wc-pick" cx={hover.x} cy={hover.y} r="6.5" fill="none" stroke="var(--green)" strokeWidth="2.2" />}
         </svg>
+        {hover && <div className="wc-val" style={{ left: hover.x / W * 100 + '%', top: hover.y / H * 100 + '%', ...(hover.x > W * 0.8 ? { transform: 'translate(calc(-100% - 11px), -50%)' } : {}) }}>
+          {fmtNum(hover.w)}
+        </div>}
         {hover && <div className="ctip" ref={tipRef}>
           {fmtDate(hover.d, true, showYear)} · {fmtNum(hover.w)}{unit ? ' ' + unit : ''}
           {hover.n > 1 ? ' · ' + t('Average {0}', fmtNum(hover.avg) + (unit ? ' ' + unit : '')) : ''}
