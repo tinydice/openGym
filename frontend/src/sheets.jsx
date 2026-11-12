@@ -45,6 +45,7 @@ import { MOBILE, shareExport, shareExportBlob, printHtml } from './lib/mobile.js
 import { speedUnitOf, toSpeed, fromSpeed } from './lib/speed.js'
 import { buildCompletedWorkout, sessionEnd } from './lib/finish-workout.js'
 import { refillAfter } from './lib/rotation.js'
+import { freestyleEntries } from './lib/most-used.js'
 import { isWarmupRow, hasCompletedWork } from './lib/workout-model.js'
 import { saveSessionAsRoutine } from './lib/session-routines.js'
 import { repeatSessionEntries } from './lib/session-repeat.js'
@@ -2854,6 +2855,30 @@ export function repeatWorkout(w, close) {
   }
   if (st.weighIn === false) { go(null); return }
   if (close) close()
+  bwSheet({ required: true, onDone: go })
+}
+
+// Train's "Most used": the picked exercises as a new freestyle session, each seeded from what you
+// did last time (lib/most-used.js). The weigh-in asks first, the way starting any workout does.
+export function startWithExercises(ids) {
+  const st = S()
+  if (st.active) { toast(t('Finish the current workout first.')); return }
+  const have = new Set(allExercises(st).map(e => e.id))
+  const entries = freestyleEntries(st, ids, id => have.has(id))
+  if (!entries.length) { toast(t('Nothing to start. Those exercises no longer exist.')); return }
+  const go = bw => {
+    if (S().active) { toast(t('Finish the current workout first.')); return }
+    update(s => {
+      s.active = {
+        id: uid(), d: todayISO(), ...clockFields(false), routineIds: [],
+        name: t('Freestyle'), bw: bw || null, cur: 0, entries,
+        workoutView: s.workoutView || 'cards',
+      }
+    })
+    useUI.getState().stopRest()
+    navToWorkout()
+  }
+  if (st.weighIn === false) { go(null); return }
   bwSheet({ required: true, onDone: go })
 }
 

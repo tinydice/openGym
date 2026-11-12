@@ -60,32 +60,6 @@ afterEach(() => {
 const mount = () => act(() => root.render(<Plan />))
 const day = name => host.querySelector(`.plan-day[aria-label="${name}"]`)
 
-describe('Plan — the weekday rows', () => {
-  it('a planned day is one row with no buttons of its own; a tap opens the day’s picker', () => {
-    mount()
-    const monday = day('Monday')
-    expect(monday.querySelector('.tt').textContent).toBe('Push')
-    expect(monday.querySelectorAll('button').length).toBe(0)
-    act(() => monday.click())
-    expect(dayAssignSheet).toHaveBeenCalledWith(1)
-  })
-
-  it('an empty day is a rest day that asks to be planned, and opens the same picker', () => {
-    mount()
-    const tuesday = day('Tuesday')
-    expect(tuesday.textContent).toContain('Rest day')
-    expect(tuesday.textContent).toContain('Tap to plan something')
-    act(() => tuesday.click())
-    expect(dayAssignSheet).toHaveBeenCalledWith(2)
-  })
-
-  it('opens on the keyboard too', () => {
-    mount()
-    act(() => { day('Friday').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })) })
-    expect(dayAssignSheet).toHaveBeenCalledWith(5)
-  })
-})
-
 describe('Plan — the menu', () => {
   const openMenu = () => {
     act(() => host.querySelector('button[aria-label="Plan options"]').click())

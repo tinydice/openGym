@@ -73,10 +73,8 @@ export default function Home() {
   // A coach week (S.queue) read through the same tolerant reader QueueRow uses, so a malformed
   // queue from another client shows the weekday dots, never an empty card.
   const queue = queueView(S, todayISO())
-  // This card shows one thing or the other — QueueRow for a live queue, or Rotation chosen with
-  // nothing built yet (S.scheduleMode), in which case there is no queue for QueueRow to render and
-  // an empty-state card takes its place. Plan does the same in rotation mode: no weekday grid, only
-  // the days that add a routine the loop does not have (Plan.jsx, "Also on fixed days").
+  // This card shows QueueRow for a queue a planner wrote, and the week otherwise. The app's own
+  // rotation has no screen any more (Train shows most used exercises instead), so it shows the week too.
   const rotating = scheduleModeOf(S) === 'rotation'
   // A planner-written queue (no rotationId) still names its weekday when it hasn't started yet —
   // that copy predates rotation and stays as it is. Our own rotation has no weekday of its own
@@ -110,10 +108,7 @@ export default function Home() {
       {/* A coach week runs by order, not by weekday, so its progress row stands in for the
           seven dots (components/QueueRow.jsx). The today row below stays as it is: the queue's
           next session reaches it through effectiveRoutineIds like any planned routine. */}
-      {rotating ? (queue ? <QueueRow S={S} today={todayISO()} onStart={onQueueStart} managed={managedQueue} /> : <div className="empty">
-        {t('No rotation yet. Add routines to it in Plan.')}
-        <div style={{ marginTop: 10 }}><Button size="sm" variant="tinted" onClick={() => nav('/plan')}>{t('Set up in Plan')}</Button></div>
-      </div>) : <>
+      {rotating && plannerQueue ? <QueueRow S={S} today={todayISO()} onStart={onQueueStart} managed={managedQueue} /> : <>
         <div className="row between" style={{ marginBottom: 8 }}>
           <button className="iconbtn" style={{ width: 30, height: 30, fontSize: 15 }} onClick={() => setWeekOffset(w => w - 1)} aria-label={t('Previous week')}><Icon name="chevronLeft" /></button>
           <div className="small muted" style={{ fontWeight: 500 }}>{wkLabel}</div>

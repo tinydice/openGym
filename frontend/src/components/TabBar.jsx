@@ -52,7 +52,7 @@ export default function TabBar({ onStart }) {
   return (
     <nav id="tabbar">
       <Tab active={on('home')} icon="house" label={t('Home')} dot={trouble} onClick={() => nav('/home')} />
-      <Tab active={on('plan')} icon="calendar" label={t('Plan')} onClick={() => nav('/plan')} />
+      <Tab active={on('plan')} icon="clipboard" label={t('Train')} onClick={() => nav('/plan')} />
       {/* Play and pause in one button. With nothing open it starts today's session, clock
           running; with a session open it starts, pauses and resumes its clock without leaving the
           screen you are on. A session opened but not started reads Start; one that has run shows

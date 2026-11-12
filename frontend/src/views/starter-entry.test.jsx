@@ -21,6 +21,7 @@ let host, root
 beforeEach(() => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
   starterPlanSheet.mockClear()
+  localStorage.setItem('gym_plan_view', 'routines') // the starter offer is on Train's Routines view
   useStore.setState(s => ({ S: { ...s.S, routines: [], week: {}, active: null }, user: null }))
   host = document.createElement('div')
   document.body.appendChild(host)
