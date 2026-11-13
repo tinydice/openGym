@@ -2160,3 +2160,17 @@ button.wl-summary{width:100%;padding:0 0 10px;text-align:start;border-radius:var
 [dir="rtl"] *{letter-spacing:0}
 .exfix-link{display:inline-flex;align-items:center;gap:5px;margin:14px 0 4px;color:var(--label-3);text-decoration:none}
 .list .similar-label{margin:16px 2px 6px;grid-column:1/-1}
+
+/* Train, Most used: one inset list, a pick circle per row, the start button always in place */
+.mu-start{width:100%;margin:0 0 14px}
+.mu-start:disabled{opacity:1;background:var(--surface);color:var(--label-2)}
+.mu-row{min-height:60px;padding:8px 14px}
+.mu-row+.mu-row::before{inset-inline-start:90px}
+.mu-row .thumb{width:40px;height:40px;border-radius:8px}
+.mu-row .thumb-x{font-size:18px}
+.mu-row .lrow-m{min-width:0}
+.mu-row .lrow-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mu-pick{width:24px;height:24px;border-radius:50%;flex:none;border:2px solid var(--label-3);
+  display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--on-acc);--icon-stroke:3}
+.mu-row.on .mu-pick{background:var(--acc);border-color:var(--acc)}
+.mu-more{margin-top:10px}

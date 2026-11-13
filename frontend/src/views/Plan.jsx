@@ -2,15 +2,15 @@ import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
-import { DAYS, weekOrder, weekStartOf, uid, exCount } from '../lib/format.js'
-import { t, exerciseNameFor, exerciseNameClass } from '../lib/i18n.js'
+import { DAYS, weekOrder, weekStartOf, uid, exCount, fmtDaysAgo } from '../lib/format.js'
+import { t, tn, exerciseNameFor, exerciseNameClass } from '../lib/i18n.js'
 import {
   starterPlanSheet, menuSheet, planHasRoutines, exportPlanFile, printWholePlan, importPlanFile, startWithExercises,
 } from '../sheets.jsx'
 import Icon from '../components/Icon.jsx'
 import { Thumb } from '../components/Media.jsx'
 import { allExercises } from '../lib/exercises.js'
-import { mostUsedIds } from '../lib/most-used.js'
+import { mostUsedStats } from '../lib/most-used.js'
 import { Button, Segmented } from '../components/ui.jsx'
 import SwipeRow from '../components/SwipeRow.jsx'
 import { copyRoutine, deleteRoutine, restoreRoutine, routineSnapshot } from '../lib/routines.js'
@@ -161,7 +161,7 @@ export default function Plan() {
 
   return <div className="narrow plan">
     <div className="hdr">
-      <div><h1>{t('Train')}</h1><div className="sub">{t('Your most used exercises and routines')}</div></div>
+      <div><h1>{t('Train')}</h1><div className="sub">{t('Pick exercises or a routine')}</div></div>
       <div className="hdr-actions">
         {showCoach && <Button size="sm" variant="tinted" icon="sparkles" onClick={() => nav('/coach')}>{t('Coach')}</Button>}
         <button className="iconbtn" onClick={openMenu} aria-label={t('Plan options')} title={t('Plan options')}><Icon name="share" /></button>
@@ -182,21 +182,28 @@ function MostUsed({ S }) {
   const [picked, setPicked] = useState([])
   const [shown, setShown] = useState(12)
   const byId = Object.fromEntries(allExercises(S).map(e => [e.id, e]))
-  const ids = mostUsedIds(S, id => !!byId[id])
+  const stats = mostUsedStats(S, id => !!byId[id])
   const toggle = id => setPicked(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id])
-  if (!ids.length) return <div className="empty"><div className="ico"><Icon name="dumbbell" /></div>{t('Nothing logged yet.')}<br />{t('Your most used exercises show up here after your first workouts.')}</div>
+  if (!stats.length) return <div className="empty"><div className="ico"><Icon name="dumbbell" /></div>{t('Nothing logged yet.')}<br />{t('Your most used exercises show up here after your first workouts.')}</div>
+  // The start button is always there (dimmed until something is picked), so picking never pushes the list down.
+  const n = picked.length
   return <>
-    {picked.length > 0 && <Button variant="primary" icon="play" onClick={() => startWithExercises(ids.filter(id => picked.includes(id)))}>
-      {t('Start workout')} ({picked.length})</Button>}
-    <div className="list">{ids.slice(0, shown).map(id => {
-      const e = byId[id]
-      return <div key={id} className="item" {...tappable(() => toggle(id))}>
-        <Thumb ex={e} /><div className="grow"><div className={`tt ${exerciseNameClass(e)}`}>{exerciseNameFor(e)}</div></div>
-        {picked.includes(id) && <Icon name="check" className="lrow-k" />}
+    <Button className="mu-start" variant="primary" icon="play" disabled={!n}
+      onClick={() => startWithExercises(stats.map(x => x.id).filter(id => picked.includes(id)))}>
+      {n ? t('Start workout · {0}', exCount(n)) : t('Pick exercises to start')}</Button>
+    <div className="sect-b mu-list">{stats.slice(0, shown).map(({ id, n: times, last }) => {
+      const e = byId[id], on = picked.includes(id)
+      return <div key={id} className={`lrow tap mu-row${on ? ' on' : ''}`} aria-pressed={on} {...tappable(() => toggle(id))}>
+        <span className="mu-pick" aria-hidden="true">{on && <Icon name="check" />}</span>
+        <Thumb ex={e} />
+        <span className="lrow-m">
+          <span className={`lrow-t ${exerciseNameClass(e)}`}>{exerciseNameFor(e)}</span>
+          <span className="lrow-s">{tn('{0} workout', '{0} workouts', times)} · {fmtDaysAgo(last)}</span>
+        </span>
       </div>
     })}</div>
-    {ids.length > shown && <Button size="sm" variant="tinted" onClick={() => setShown(n => n + 12)}>{t('Show more')}</Button>}
-    <p className="sect-f">{t('Tap to pick one or a few, then start. Each starts from what you did last time.')}</p>
+    {stats.length > shown && <Button size="sm" variant="tinted" className="mu-more" onClick={() => setShown(k => k + 12)}>{t('Show more')}</Button>}
+    <p className="sect-f">{t('Each exercise starts from what you did last time.')}</p>
   </>
 }
 

@@ -9,6 +9,11 @@ import { dropGrid } from './plates.js'
 /** Exercise ids, most often logged first. A workout counts once per exercise, and only when at
  *  least one of its sets was ticked; ties go to the one done most recently. */
 export function mostUsedIds(S, exists = id => !!EXIDX[id]) {
+  return mostUsedStats(S, exists).map(x => x.id)
+}
+
+/** The same list with how many workouts each exercise was in and the last one's date. */
+export function mostUsedStats(S, exists = id => !!EXIDX[id]) {
   const n = {}, last = {}
   for (const w of S?.workouts || []) {
     for (const id of new Set((w.entries || []).filter(e => (e.sets || []).some(x => x.done)).map(e => e.id))) {
@@ -18,6 +23,7 @@ export function mostUsedIds(S, exists = id => !!EXIDX[id]) {
   }
   return Object.keys(n).filter(exists)
     .sort((a, b) => (n[b] - n[a]) || String(last[b]).localeCompare(String(last[a])) || a.localeCompare(b))
+    .map(id => ({ id, n: n[id], last: last[id] }))
 }
 
 /** Entries for a new freestyle session, one per id, each seeded from what you did last time:

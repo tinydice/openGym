@@ -25,8 +25,8 @@ beforeEach(() => {
 })
 afterEach(() => { act(() => root.unmount()); host.remove() })
 const setWorkouts = workouts => useStore.setState(s => ({ S: { ...s.S, routines: [], week: {}, active: null, workouts } }))
-const rows = () => [...host.querySelectorAll('.list .item')]
-const startBtn = () => [...host.querySelectorAll('button')].find(b => b.textContent.startsWith('Start workout'))
+const rows = () => [...host.querySelectorAll('.mu-list .mu-row')]
+const startBtn = () => host.querySelector('.mu-start')
 
 describe('Train — Most used', () => {
   it('says so while nothing is logged', () => {
@@ -41,20 +41,23 @@ describe('Train — Most used', () => {
     setWorkouts([w('2026-01-01', '0685', '0001'), w('2026-01-02', '0685'), w('2026-01-03', '0685', '0002')])
     act(() => root.render(<Plan />))
     expect(rows()).toHaveLength(3)
-    expect(startBtn()).toBeFalsy()
+    expect(rows()[0].textContent).toContain('3 workouts')
+    expect(startBtn().disabled).toBe(true)
+    expect(startBtn().textContent).toBe('Pick exercises to start')
     act(() => { rows()[2].click() })
     act(() => { rows()[0].click() })
-    expect(startBtn().textContent).toBe('Start workout (2)')
+    expect(startBtn().textContent).toBe('Start workout · 2 exercises')
+    expect(rows()[0].getAttribute('aria-pressed')).toBe('true')
     act(() => { startBtn().click() })
     expect(startWithExercises).toHaveBeenCalledWith(['0685', '0001'])
   })
 
-  it('a second tap unpicks, and the start button goes away', () => {
+  it('a second tap unpicks, and the start button dims again', () => {
     setWorkouts([w('2026-01-01', '0685')])
     act(() => root.render(<Plan />))
     act(() => { rows()[0].click() })
-    expect(startBtn()).toBeTruthy()
+    expect(startBtn().disabled).toBe(false)
     act(() => { rows()[0].click() })
-    expect(startBtn()).toBeFalsy()
+    expect(startBtn().disabled).toBe(true)
   })
 })
