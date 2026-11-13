@@ -17,6 +17,7 @@ vi.mock('react-router-dom', () => ({ useNavigate: () => () => {} }))
 vi.mock('../sheets.jsx', () => ({
   starterPlanSheet: vi.fn(), bwSheet: vi.fn(), goalSheet: vi.fn(), dayOverrideSheet: vi.fn(),
   calendarSheet: vi.fn(), startFlow: vi.fn(), bwDeltaColor: () => '',
+  workoutDetailSheet: vi.fn(), WorkoutRow: ({ w, onClick }) => <div className="item" onClick={onClick}>{w.name}</div>,
 }))
 
 const routines = [
@@ -147,7 +148,7 @@ describe('Home — coach week progress row', () => {
     setS({ queue: { ids: 'd1' }, week: { [new Date().getDay()]: ['own'] } })
     mount()
     expect(host.querySelector('.queue')).toBeNull()
-    expect(host.querySelectorAll('.week .wday').length).toBe(7)
+    expect(host.querySelectorAll('.week .wday').length).toBe(70)
     expect(todayTitle()).toBe('Core')
   })
 
@@ -176,7 +177,7 @@ describe('Home — coach week progress row', () => {
     setS({ queue: null })
     mount()
     expect(host.querySelector('.queue')).toBeNull()
-    expect(host.querySelectorAll('.wday').length).toBe(7)
+    expect(host.querySelectorAll('.wday').length).toBe(70)
   })
 })
 
@@ -268,4 +269,30 @@ describe('Home — the today row follows today\'s plan, not just the last sessio
     expect(tag()).toBe('Done')
   })
 
+})
+
+describe('Home — the day strip', () => {
+  it('reaches back eight weeks and on to next week, and a tap on a past day shows what was logged', () => {
+    const d = daysFromToday(-2)
+    const w = { id: 'w-past', d, start: Date.now() - 2 * 86400000, end: Date.now() - 2 * 86400000 + 3600000, routineIds: [], name: 'Past session', entries: [] }
+    setS({ queue: null, workouts: [w] })
+    mount()
+    expect(host.querySelector('.day-panel')).toBeNull()
+    act(() => { host.querySelector(`.wday[data-iso="${d}"]`).click() })
+    expect(host.querySelector('.day-panel').textContent).toContain('Past session')
+    expect(host.querySelector('.today-row .ttl')).toBeNull()
+    act(() => { host.querySelector('.wk-today').click() })
+    expect(host.querySelector('.day-panel')).toBeNull()
+  })
+
+  it('a day with nothing logged says so and opens the day sheet', async () => {
+    const { dayOverrideSheet } = await import('../sheets.jsx')
+    const d = daysFromToday(-3)
+    setS({ queue: null })
+    mount()
+    act(() => { host.querySelector(`.wday[data-iso="${d}"]`).click() })
+    expect(host.querySelector('.day-panel .lbl2').textContent).toBe('Nothing logged')
+    act(() => { host.querySelector('.day-panel .today-row').click() })
+    expect(dayOverrideSheet).toHaveBeenCalledWith(d)
+  })
 })

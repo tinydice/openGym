@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useState, useRef, useLayoutEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
 import { isPaused, isNotStarted } from '../lib/session-pause.js'
 import { effectiveRoutines, effectiveRoutineIds, nextTrainingDay, lastBW, setsDoneActive } from '../lib/history.js'
 import { fmtNum, fmtDate, todayISO, isoOf, weekStartOf, weekKey, weekDayOffset, DAYS, DAYN } from '../lib/format.js'
 import { t, tn, dateLocale } from '../lib/i18n.js'
-import { bwSheet, goalSheet, dayOverrideSheet, calendarSheet, startFlow, starterPlanSheet, bwDeltaColor, weighInsSheet } from '../sheets.jsx'
+import { bwSheet, goalSheet, dayOverrideSheet, calendarSheet, startFlow, starterPlanSheet, bwDeltaColor, weighInsSheet, WorkoutRow, workoutDetailSheet } from '../sheets.jsx'
 import WeightChart from '../components/WeightChart.jsx'
 import Icon from '../components/Icon.jsx'
 import QueueRow from '../components/QueueRow.jsx'
@@ -17,6 +17,9 @@ import { tappable } from '../lib/use-sheet-keyboard.js'
 import { glyphOf } from '../lib/glyphs.js'
 import { dayNoteOf } from '../lib/day-notes.js'
 
+// How many weeks back the day strip reaches. It also shows next week, and opens on this one.
+export const PAST_WEEKS = 8
+
 // Home = what to do now + a quick glance. Deep charts & history live in Stats.
 export default function Home() {
   const nav = useNavigate()
@@ -24,7 +27,9 @@ export default function Home() {
   const user = useStore(s => s.user)
   // The banner switched off and the sync stuck: a dot on the gear (Settings → Show connection status).
   const trouble = useConnectionTrouble()
-  const [weekOffset, setWeekOffset] = useState(0)
+  // The day picked on the strip. Today shows the today row; any other day shows what was logged or planned.
+  const [sel, setSel] = useState(todayISO)
+  const stripRef = useRef(null)
 
   const today = new Date()
   // A weekday can hold several routines. `todayRoutines` is the whole day; `routine` is the
@@ -45,7 +50,7 @@ export default function Home() {
   // The first day of the shown week. Named for the role, not for Monday — which day that is
   // is the setting.
   const wkStart = new Date(today)
-  wkStart.setDate(today.getDate() - weekDayOffset(today.getDay(), ws) + weekOffset * 7)
+  wkStart.setDate(today.getDate() - weekDayOffset(today.getDay(), ws) - PAST_WEEKS * 7)
   const doneDays = new Set(S.workouts.map(w => w.d))
   // The last session logged for today, if any — what the row below reports instead of asking
   // you to start the one you already did. Last wins, so a second session names itself. Only once
@@ -58,17 +63,25 @@ export default function Home() {
   const coveredToday = id => !queueIds.includes(id) && loggedToday.some(w => (Array.isArray(w.routineIds) ? w.routineIds : [w.routineId]).includes(id))
   const doneToday = (todayRoutines.every(r => coveredToday(r.id)) && loggedToday.at(-1)) || null
   const strip = []
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < (PAST_WEEKS + 2) * 7; i++) {
     const d = new Date(wkStart); d.setDate(wkStart.getDate() + i)
     const iso = isoOf(d)
     const eff = effectiveRoutineIds(S, iso).length > 0, ovr = S.dayPlan[iso] !== undefined, done = doneDays.has(iso)
     // A day off with a note (#261) reads as excused, not as a plan that went by.
     const dot = done ? ' done' : dayNoteOf(S, iso) ? ' noted' : ovr && eff ? ' ovr' : eff ? ' plan' : ''
-    strip.push(<div key={i} className={'wday' + (iso === todayISO() ? ' today' : '')} {...tappable(() => dayOverrideSheet(iso))}>
+    strip.push(<div key={i} data-iso={iso} aria-pressed={iso === sel}
+      className={'wday' + (iso === todayISO() ? ' today' : '') + (iso === sel ? ' sel' : '') + (i % 7 === 0 ? ' wk0' : '')} {...tappable(() => setSel(iso))}>
       <div className="lbl">{t(DAYS[d.getDay()])}</div><div className="num">{d.getDate()}</div><div className={'dot' + dot} /></div>)
   }
-  const wkEnd = new Date(wkStart); wkEnd.setDate(wkStart.getDate() + 6)
-  const wkLabel = weekOffset === 0 ? t('This week') : `${wkStart.getDate()} ${wkStart.toLocaleDateString(dateLocale(), { month: 'short' })} – ${wkEnd.getDate()} ${wkEnd.toLocaleDateString(dateLocale(), { month: 'short' })}`
+  const selToday = sel === todayISO()
+  const selWorkouts = S.workouts.filter(w => w.d === sel)
+  const selRoutines = effectiveRoutines(S, sel)
+  // Each page of the strip is one week, so this week starts PAST_WEEKS pages in.
+  const toThisWeek = smooth => {
+    const el = stripRef.current
+    if (el) el.scrollTo({ left: el.clientWidth * PAST_WEEKS, behavior: smooth ? 'smooth' : 'auto' })
+  }
+  useLayoutEffect(() => { toThisWeek(false) }, [])
 
   // A coach week (S.queue) read through the same tolerant reader QueueRow uses, so a malformed
   // queue from another client shows the weekday dots, never an empty card.
@@ -109,19 +122,18 @@ export default function Home() {
           seven dots (components/QueueRow.jsx). The today row below stays as it is: the queue's
           next session reaches it through effectiveRoutineIds like any planned routine. */}
       {rotating && plannerQueue ? <QueueRow S={S} today={todayISO()} onStart={onQueueStart} managed={managedQueue} /> : <>
-        <div className="row between" style={{ marginBottom: 8 }}>
-          <button className="iconbtn" style={{ width: 30, height: 30, fontSize: 15 }} onClick={() => setWeekOffset(w => w - 1)} aria-label={t('Previous week')}><Icon name="chevronLeft" /></button>
-          <div className="small muted" style={{ fontWeight: 500 }}>{wkLabel}</div>
-          <button className="iconbtn" style={{ width: 30, height: 30, fontSize: 15 }} onClick={() => setWeekOffset(w => w + 1)} aria-label={t('Next week')}><Icon name="chevronRight" /></button>
+        <div className="row between wk-head">
+          <div className="small muted" style={{ fontWeight: 500 }}>{selToday ? t('Today') : fmtDate(sel, true)}</div>
+          {!selToday && <button className="wk-today" onClick={() => { setSel(todayISO()); toThisWeek(true) }}>{t('Today')}</button>}
         </div>
-        <div className="week">{strip}</div>
+        <div className="week scroll" ref={stripRef}>{strip}</div>
       </>}
       {/* Once today's session is logged the row stops asking for it. The week strip already
           knew (its dot goes 'done'); this row did not, so a finished day kept showing the
           routine name behind a green Start tag and read as still outstanding (issue #4).
           An in-progress session still wins — that one is happening right now. Tapping the
           row keeps working, so a second session in one day is a tap away, just not urged. */}
-      <div className="today-row" {...tappable(onToday)}>
+      {selToday ? <div className="today-row" {...tappable(onToday)}>
         <div className="row" style={{ gap: 9, minWidth: 0 }}>
           <span className="lrow-i" style={{ background: S.active ? (isNotStarted(S.active) ? 'var(--acc)' : 'var(--orange)') : doneToday ? 'var(--surface-3)' : routine ? 'var(--acc)' : 'var(--surface-3)' }}>
             <Icon name={S.active ? (editingSaved ? 'pencil' : isPaused(S.active) ? 'play' : 'pause') : doneToday ? 'checkCircle' : routine ? glyphOf(routine.emoji) : 'moon'}
@@ -140,7 +152,7 @@ export default function Home() {
           : doneToday ? <span className="tag" style={{ color: 'var(--green)', background: 'color-mix(in srgb,var(--green) 16%,transparent)' }}>{t('Done')}</span>
           : routine ? <span className="tag acc">{t('Start')}</span>
           : <Icon name="plus" className="chev" />}
-      </div>
+      </div> : <DayPanel sel={sel} workouts={selWorkouts} routines={selRoutines} />}
     </div>
 
     {/* The today row and the tab bar's play both go to the planned session, so the Start screen
@@ -210,5 +222,27 @@ export default function Home() {
         <Icon name="calendar" className="chev" style={{ fontSize: 20 }} />
       </div>
     </div>
+  </div>
+}
+
+// A day picked on the strip that is not today: the workouts logged that day, or what was or is
+// planned. Planning a day and leaving a note on it (what a tap on a day used to open) stay one tap away.
+function DayPanel({ sel, workouts, routines }) {
+  const past = sel < todayISO()
+  return <div className="day-panel">
+    {workouts.map(w => <WorkoutRow key={w.id} w={w} onClick={() => workoutDetailSheet(w)} />)}
+    {!workouts.length && <div className="today-row" {...tappable(() => dayOverrideSheet(sel))}>
+      <div className="row" style={{ gap: 9, minWidth: 0 }}>
+        <span className="lrow-i" style={{ background: routines.length ? 'var(--acc)' : 'var(--surface-3)' }}>
+          <Icon name={routines.length ? glyphOf(routines[0].emoji) : 'moon'} />
+        </span>
+        <div style={{ minWidth: 0 }}>
+          <div className="lbl2">{past ? t('Nothing logged') : t('Planned')}</div>
+          <div className="ttl">{routines.length ? routines.map(r => r.name).join(' + ') : t('Rest day')}</div>
+        </div>
+      </div>
+      <Icon name="chevronRight" className="chev" />
+    </div>}
+    {workouts.length > 0 && <button className="day-opts" onClick={() => dayOverrideSheet(sel)}>{t('Plan or note for this day')}</button>}
   </div>
 }

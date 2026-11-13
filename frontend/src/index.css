@@ -2174,3 +2174,18 @@ button.wl-summary{width:100%;padding:0 0 10px;text-align:start;border-radius:var
   display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--on-acc);--icon-stroke:3}
 .mu-row.on .mu-pick{background:var(--acc);border-color:var(--acc)}
 .mu-more{margin-top:10px}
+
+/* Home: the day strip scrolls back through past weeks, one week per swipe; a tap picks the day */
+.week.scroll{overflow-x:auto;scroll-snap-type:x mandatory;gap:0;justify-content:flex-start;
+  scrollbar-width:none;overscroll-behavior-x:contain}
+.week.scroll::-webkit-scrollbar{display:none}
+.week.scroll .wday{flex:0 0 calc(100% / 7)}
+.week.scroll .wday.wk0{scroll-snap-align:start}
+.wday.sel:not(.today){background:var(--surface-2)}
+.wday.sel:not(.today) .num{font-weight:600}
+.wk-head{margin-bottom:8px;min-height:30px}
+.wk-today{color:var(--acc);font-size:15px;font-weight:500;background:none;border:none;padding:4px 2px}
+.day-panel{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.day-panel .today-row{margin-top:0}
+.day-panel .item{background:var(--surface-2)}
+.day-opts{color:var(--acc);font-size:15px;background:none;border:none;padding:4px 2px;text-align:start}
